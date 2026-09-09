@@ -1,0 +1,14 @@
+# Archivos de entorno virtual de Python
+Backend/venv/
+*.pyc
+__pycache__/
+Backend/db.sqlite3
+
+# Archivos de dependencias de Node / React
+Frontend/node_modules/
+Frontend/dist/
+
+# Seguridad y variables de entorno
+.env
+*.p12
+.DS_Store
