@@ -2,7 +2,7 @@
 Backend/venv/
 *.pyc
 __pycache__/
-Backend/db.sqlite3
+Backend/siu.db
 
 # Archivos de dependencias de Node / React
 Frontend/node_modules/
