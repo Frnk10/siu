@@ -1,16 +1,47 @@
-# React + Vite
+# Notus-React Free React.js Tailwindcss Template
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+#### Preview
 
-Currently, two official plugins are available:
+- [Demo](https://themewagon.github.io/Notus-Next.js/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+#### Download
 
-## React Compiler
+- [Download from ThemeWagon](https://themewagon.github.io/Notus-Next.js/)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting Started
 
-## Expanding the ESLint configuration
+1. Clone Repository
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+git clone https://github.com/themewagon/Notus-Next.js.git
+```
+
+2. Install Dependencies
+
+```
+npm i
+```
+
+3. Run the development server:
+
+```bash
+npm run start
+# or
+yarn start
+# or
+pnpm start
+# or
+bun start
+```
+
+## Author
+
+```
+Design and code is completely written by Creative Tim design and development team.
+```
+
+## License
+
+- Design and Code is Copyright &copy; [Creative Tim](https://www.creative-tim.com/)
+- Licensed cover under [MIT]
+- Distributed by [ThemeWagon](https://themewagon.com)
