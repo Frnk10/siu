@@ -1,5 +1,4 @@
 from django.db import models
-
 from Backend.siu.Aplicaciones.basemodel.models import BaseModel
 
 class Financiera(BaseModel):
