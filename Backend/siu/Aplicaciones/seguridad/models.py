@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings  # Importante para referenciar el User
 from Backend.siu.Aplicaciones.basemodel.models import BaseModel
 
 class Genero(BaseModel):
@@ -30,19 +31,26 @@ class Instruccion(BaseModel):
         return self.nombre
 
 class Persona(BaseModel):
+    # Relación Uno a Uno con el User de Django
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,                    # Permite tener Clientes/Proveedores sin usuario
+        blank=True,
+        related_name='persona'        # Permite acceder desde user via: request.user.persona
+    )
     codigo = models.AutoField(primary_key=True)
     fk_codigo_genero = models.ForeignKey(Genero)
     fk_codigo_estado_civil = models.ForeignKey(EstadoCivil)
     fk_codigo_grupo_sanguineo = models.ForeignKey(GrupoSanguineo)
     fk_codigo_instruccion = models.ForeignKey(Instruccion)
-    identidficacion = models.CharField(max_length=10)
+    identidficacion = models.CharField(max_length=13)
     nombre = models.CharField(max_length=50)
     apellido = models.CharField(max_length=50)
     razon_social = models.CharField(max_length=100)
     fecha_nacimiento = models.DateField()
     fotografia = models.ImageField(upload_to='fotos/', blank=True, null=True)
-    mail1 = models.CharField(max_length=50)
-    mail2 = models.CharField(max_length=50)
+    mail1 = models.EmailField(max_length=50)
+    mail2 = models.EmailField(max_length=50)
     telefono1 = models.CharField(max_length=15)
     telefono2 = models.CharField(max_length=15)
     celular1 = models.CharField(max_length=15)
