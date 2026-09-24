@@ -48,7 +48,7 @@ class Persona(BaseModel):
     apellido = models.CharField(max_length=50)
     razon_social = models.CharField(max_length=100)
     fecha_nacimiento = models.DateField()
-    fotografia = models.ImageField(upload_to='fotos/', blank=True, null=True)
+    fotografia = models.BinaryField(null=True,blank=True)
     mail1 = models.EmailField(max_length=50)
     mail2 = models.EmailField(max_length=50)
     telefono1 = models.CharField(max_length=15)
