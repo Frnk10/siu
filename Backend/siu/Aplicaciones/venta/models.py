@@ -21,10 +21,10 @@ class Cliente(models.Model):
 
 class Comprobante(BaseModel):
     codigo = models.AutoField(primary_key=True)
-    pk_codigo_cliente = models.ForeignKey(
+    fk_codigo_cliente = models.ForeignKey(
         Cliente,
-        db_column='pk_codigo_cliente',
-        related_name='codigo_clientes'
+        db_column='fk_codigo_cliente',
+        related_name='FK_CLIENTE_COMPROBANTE'
     )
     id_comprobante_referencia = models.IntegerField(blank=True, null=True)
     fecha_emision = models.DateTimeField(blank=False, null=False)
@@ -68,10 +68,10 @@ class Comprobante(BaseModel):
 
 class ComprobanteDetalle(models.Model):
     codigo = models.AutoField(primary_key=True)
-    pk_codigo_cabecera = models.ForeignKey(
+    fk_codigo_comprobante = models.ForeignKey(
         Cliente,
-        db_column='pk_codigo_cabecera',
-        related_name='codigo_cabeceras'
+        db_column='fk_codigo_comprobante',
+        related_name='FK_COMPROBANTE_DETALLE'
     )
     id_producto = models.IntegerField(blank=False, null=False)
     id_promocion = models.IntegerField(blank=True, null=True)
@@ -92,10 +92,10 @@ class ComprobanteDetalle(models.Model):
 
 class Cobro(BaseModel):
     codigo = models.AutoField(primary_key=True)
-    pk_codigo_comprobante = models.ForeignKey(
+    fk_codigo_comprobante = models.ForeignKey(
         Comprobante,
-        db_column='pk_codigo_comprobante',
-        related_name='codigo_comprobantes'
+        db_column='fk_codigo_comprobante',
+        related_name='FK_COMPROBANTE_COBRO'
     )
     forma = models.CharField(
         default="C", max_length=1, help_text="C=CONTADO, D=DIFERIDO", blank=False, null=False
@@ -116,10 +116,10 @@ class Cobro(BaseModel):
 
 class CobroDetalle(BaseModel):
     codigo = models.AutoField(primary_key=True)
-    pk_codigo_cobro= models.ForeignKey(
+    fk_codigo_cobro= models.ForeignKey(
         Cobro,
-        db_column='pk_codigo_cobro',
-        related_name='codigo_cobros'
+        db_column='fk_codigo_cobro',
+        related_name='FK_COBRO_DETALLE'
     )
     id_movimiento_caja = models.IntegerField(blank=True, null=True)
     numero_cuota = models.IntegerField(blank=False, null=False)
@@ -137,7 +137,7 @@ class CobroDetalle(BaseModel):
     )
     monto_cobro_total = models.DecimalField(max_digits=8, decimal_places=2, blank=False, null=False)
     archivo1 = models.BinaryField(blank=True, null=True)
-    archivo1 = models.BinaryField(blank=True, null=True)
+    archivo2 = models.BinaryField(blank=True, null=True)
 
     def __str__(self):
         return self.numero_cuota
