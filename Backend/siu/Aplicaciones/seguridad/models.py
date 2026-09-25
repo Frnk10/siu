@@ -124,7 +124,7 @@ class Configuracion(BaseModel):
     def __str__(self):
         return self.nombre
 
-class EmpreasConfiguracion(BaseModel):
+class EmpresaConfiguracion(BaseModel):
     pk_codigo_empresa = models.ForeignKey(
         Empresa,
         on_delete=models.CASCADE,
