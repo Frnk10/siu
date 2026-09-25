@@ -162,12 +162,11 @@ class Sucursal(BaseModel):
     def __str__(self):
         return self.nombre
 
-class Usuario(models.Model):
-    codigo = models.AutoField(primary_key=True)
-    pk_codigo_sucursal = models.ForeignKey(
+class Usuario(Persona):
+    fk_codigo_sucursal = models.ForeignKey(
         Sucursal,
-        db_column='pk_codigo_sucursal',
-        related_name='codigo_sucursal'
+        db_column='fk_codigo_sucursal',
+        related_name='FK_SUCURSAL_USUARIO'
     )
     username = models.CharField(max_length=30)
     password = models.CharField(max_length=300)
@@ -202,32 +201,32 @@ class RolMenu(models.Model):
     pk_codigo_rol = models.ForeignKey(
         Rol,
         db_column='pk_codigo_rol',
-        related_name='codigo_rol'
+        related_name='ROL_MENU'
     )
     pk_codigo_menu = models.ForeignKey(
         Menu,
         db_column='pk_codigo_menu',
-        related_name='codigo_menu'
+        related_name='MENU_ROL'
     )
     
 class UsuarioRol(models.Model):
     pk_codigo_usuario = models.ForeignKey(
         Usuario,
         db_column='pk_codigo_usuario',
-        related_name='codigo_usuarios'
+        related_name='USUARIO_ROL'
     )
     pk_codigo_rol = models.ForeignKey(
         Rol,
         db_column='pk_codigo_rol',
-        related_name='codigo_rol'
+        related_name='ROL_USUARIO'
     )
 
 class IngresoSistema():
     codigo = models.AutoField(primary_key=True)
-    pk_codigo_usuario = models.ForeignKey(
+    fk_codigo_usuario = models.ForeignKey(
         Usuario,
-        db_column='pk_codigo_usuario',
-        related_name='codigo_usuarios'
+        db_column='fk_codigo_usuario',
+        related_name='FK_USUARIO_INGRESO'
     )
     fecha = models.DateTimeField(auto_now_add=True, auto_now=True)
     descripcion = models.CharField(max_length=200, blank=True, null=True)

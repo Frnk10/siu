@@ -1,10 +1,10 @@
 from django.db import models
 from Backend.siu.Aplicaciones.basemodel.models import BaseModel
+from seguridad.models import Persona
 
 # Create your models here.
 
-class Cliente(models.Model):
-    codigo = models.AutoField(primary_key=True)
+class Cliente(Persona):
     tiene_credito = models.CharField(
         default="N", max_length=1, help_text="S=SI, N=NO", blank=False, null=False
     )
