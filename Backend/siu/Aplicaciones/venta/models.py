@@ -1,6 +1,6 @@
 from django.db import models
-from Backend.siu.Aplicaciones.basemodel.models import BaseModel
-from seguridad.models import Persona
+from Aplicaciones.basemodel.models import BaseModel
+from Aplicaciones.seguridad.models import *
 
 # Create your models here.
 
@@ -12,7 +12,7 @@ class Cliente(Persona):
     monto_credito = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
     saldo_credito = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
     deuda_total = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
-    tipo = models.CharField(
+    tipo_cliente = models.CharField(
         default="N", max_length=1, help_text="N=NORMAL, M=MAYORISTA", blank=True, null=True
     )
 
@@ -24,7 +24,8 @@ class Comprobante(BaseModel):
     fk_codigo_cliente = models.ForeignKey(
         Cliente,
         db_column='fk_codigo_cliente',
-        related_name='FK_CLIENTE_COMPROBANTE'
+        related_name='FK_CLIENTE_COMPROBANTE',
+        on_delete=models.PROTECT
     )
     id_comprobante_referencia = models.IntegerField(blank=True, null=True)
     fecha_emision = models.DateTimeField(blank=False, null=False)
@@ -71,7 +72,8 @@ class ComprobanteDetalle(models.Model):
     fk_codigo_comprobante = models.ForeignKey(
         Cliente,
         db_column='fk_codigo_comprobante',
-        related_name='FK_COMPROBANTE_DETALLE'
+        related_name='FK_COMPROBANTE_DETALLE',
+        on_delete=models.PROTECT
     )
     id_producto = models.IntegerField(blank=False, null=False)
     id_promocion = models.IntegerField(blank=True, null=True)
@@ -95,7 +97,8 @@ class Cobro(BaseModel):
     fk_codigo_comprobante = models.ForeignKey(
         Comprobante,
         db_column='fk_codigo_comprobante',
-        related_name='FK_COMPROBANTE_COBRO'
+        related_name='FK_COMPROBANTE_COBRO',
+        on_delete=models.PROTECT
     )
     forma = models.CharField(
         default="C", max_length=1, help_text="C=CONTADO, D=DIFERIDO", blank=False, null=False
@@ -119,7 +122,8 @@ class CobroDetalle(BaseModel):
     fk_codigo_cobro= models.ForeignKey(
         Cobro,
         db_column='fk_codigo_cobro',
-        related_name='FK_COBRO_DETALLE'
+        related_name='FK_COBRO_DETALLE',
+        on_delete=models.PROTECT
     )
     id_movimiento_caja = models.IntegerField(blank=True, null=True)
     numero_cuota = models.IntegerField(blank=False, null=False)

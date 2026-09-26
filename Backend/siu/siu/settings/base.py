@@ -29,6 +29,12 @@ BASE_APPS = [
 
 LOCAL_APPS = [
     'Aplicaciones.user',
+    'Aplicaciones.basemodel',
+    'Aplicaciones.inventario',
+    'Aplicaciones.caja',
+    'Aplicaciones.compra',
+    'Aplicaciones.venta',
+    'Aplicaciones.seguridad',
 ]
 
 THIR_APPS = [

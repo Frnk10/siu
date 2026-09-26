@@ -1,5 +1,5 @@
 from django.db import models
-from Backend.siu.Aplicaciones.basemodel.models import BaseModel
+from Aplicaciones.basemodel.models import BaseModel
 
 class Financiera(BaseModel):
     codigo = models.AutoField(primary_key=True)

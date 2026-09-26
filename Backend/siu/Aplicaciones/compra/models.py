@@ -1,6 +1,6 @@
 from django.db import models
-from Backend.siu.Aplicaciones.basemodel.models import BaseModel
-from seguridad.models import Persona
+from Aplicaciones.basemodel.models import BaseModel
+from Aplicaciones.seguridad.models import Persona
 
 class Proveedor(Persona):
     numero_cuenta = models.CharField( max_length=50, blank=False, null=False)
@@ -12,8 +12,9 @@ class Compra(BaseModel):
     codigo = models.AutoField(primary_key=True)
     fk_codigo_proveedor = models.ForeignKey(
         Proveedor,
-        db_column='fk_codigo_cliente',
-        related_name='FK_PROVEEDOR_COMPRA'
+        db_column='fk_codigo_proveedor',
+        related_name='FK_PROVEEDOR_COMPRA',
+        on_delete=models.PROTECT
     )
     id_comprobante_referencia = models.IntegerField(blank=True, null=True)
     fecha_compra = models.DateTimeField(blank=False, null=False)
@@ -28,7 +29,7 @@ class Compra(BaseModel):
         default="C", max_length=1, help_text="C=COMPRA, P=PEDIDO", blank=False, null=False
     )
     estado_compra = models.CharField(
-        max_length=1, default="G" help_text="G=GENERADO, A=APROBADO P=PAGADO, R=RECIBIDO EN BODEGA", blank=False, null=False
+        max_length=1, default="G", help_text="G=GENERADO, A=APROBADO P=PAGADO, R=RECIBIDO EN BODEGA", blank=False, null=False
     )
 
     def __str__(self):
@@ -39,7 +40,8 @@ class CompraDetalle(models.Model):
     fk_codigo_compra = models.ForeignKey(
         Compra,
         db_column='fk_codigo_comprobante',
-        related_name='FK_COMPRA_DETALLE'
+        related_name='FK_COMPRA_DETALLE',
+        on_delete=models.PROTECT
     )
     id_producto = models.IntegerField(blank=False, null=False)
     id_promocion = models.IntegerField(blank=True, null=True)
@@ -58,7 +60,8 @@ class Pago(BaseModel):
     fk_codigo_compra = models.ForeignKey(
         Compra,
         db_column='fk_codigo_compra',
-        related_name='FK_COMPRA_PAGO'
+        related_name='FK_COMPRA_PAGO',
+        on_delete=models.PROTECT
     )
     forma = models.CharField(
         default="C", max_length=1, help_text="C=CONTADO, D=DIFERIDO", blank=False, null=False
@@ -82,7 +85,8 @@ class PagoDetalle(BaseModel):
     fk_codigo_pago= models.ForeignKey(
         Pago,
         db_column='fk_codigo_pago',
-        related_name='FK_PAGO_DETALLE'
+        related_name='FK_PAGO_DETALLE',
+        on_delete=models.PROTECT
     )
     id_movimiento_caja = models.IntegerField(blank=True, null=True)
     numero_cuota = models.IntegerField(blank=False, null=False)

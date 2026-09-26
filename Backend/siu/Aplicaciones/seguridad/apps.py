@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class SeguridadConfig(AppConfig):
-    name = 'seguridad'
+    name = 'Aplicaciones.seguridad'

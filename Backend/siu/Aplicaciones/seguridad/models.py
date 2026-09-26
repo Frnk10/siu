@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings  # Importante para referenciar el User
-from Backend.siu.Aplicaciones.basemodel.models import BaseModel
+from Aplicaciones.basemodel.models import BaseModel
 
 class Genero(BaseModel):
     codigo = models.AutoField(primary_key=True)
@@ -46,33 +46,39 @@ class Persona(BaseModel):
         settings.AUTH_USER_MODEL,
         null=True,                    # Permite tener Clientes/Proveedores sin usuario
         blank=True,
-        related_name='persona'        # Permite acceder desde user via: request.user.persona
+        related_name='persona',        # Permite acceder desde user via: request.user.persona
+        on_delete=models.PROTECT
     )
     codigo = models.AutoField(primary_key=True)
-    pk_codigo_genero = models.ForeignKey(
+    fk_codigo_genero = models.ForeignKey(
         Genero,
-        db_column='pk_codigo_genero',
-        related_name='codigo_generos'
+        db_column='fk_codigo_genero',
+        related_name='codigo_generos',
+        on_delete=models.PROTECT
     )
-    pk_codigo_estado_civil = models.ForeignKey(
+    fk_codigo_estado_civil = models.ForeignKey(
         EstadoCivil,
-        db_column='pk_codigo_estado_civil',
-        related_name='codigo_estado_civil'
+        db_column='fk_codigo_estado_civil',
+        related_name='codigo_estado_civil',
+        on_delete=models.PROTECT
     )
-    pk_codigo_grupo_sanguineo = models.ForeignKey(
+    fk_codigo_grupo_sanguineo = models.ForeignKey(
         GrupoSanguineo,
-        db_column='pk_codigo_grupo_sanguineo',
-        related_name='codigo_grupo_sanguineo'
+        db_column='fk_codigo_grupo_sanguineo',
+        related_name='codigo_grupo_sanguineo',
+        on_delete=models.PROTECT
     )
-    pk_codigo_instruccion = models.ForeignKey(
+    fk_codigo_instruccion = models.ForeignKey(
         Instruccion,
-        db_column='pk_codigo_instruccion',
-        related_name='codigo_instruccion'
+        db_column='fk_codigo_instruccion',
+        related_name='codigo_instruccion',
+        on_delete=models.PROTECT
     )
-    pk_codigo_localidad = models.ForeignKey(
+    fk_codigo_localidad = models.ForeignKey(
         Localidad,
-        db_column='pk_codigo_localidad',
-        related_name='codigo_localidad'
+        db_column='fk_codigo_localidad',
+        related_name='codigo_localidad',
+        on_delete=models.PROTECT
     )
     identificacion = models.CharField(max_length=13, blank=False, null=False)
     razon_social = models.CharField(max_length=100, blank=True, null=True)
@@ -125,17 +131,17 @@ class Configuracion(BaseModel):
         return self.nombre
 
 class EmpresaConfiguracion(BaseModel):
-    pk_codigo_empresa = models.ForeignKey(
+    fk_codigo_empresa = models.ForeignKey(
         Empresa,
         on_delete=models.CASCADE,
-        db_column='pk_codigo_empresa',
+        db_column='fk_codigo_empresa',
         related_name='empresa_configuraciones'
     )
     # FK hacia configuracion (columna: pk_codigo_configuracion)
-    pk_codigo_configuracion = models.ForeignKey(
+    fk_codigo_configuracion = models.ForeignKey(
         Configuracion,
         on_delete=models.CASCADE,
-        db_column='pk_codigo_configuracion',
+        db_column='fk_codigo_configuracion',
         related_name='configuracion_empresas'
     )
     valor = models.CharField(max_length=50)
@@ -143,14 +149,16 @@ class EmpresaConfiguracion(BaseModel):
     class Meta:
         db_table = 'empresa_configuracion'
         # Replica la PK compuesta: no puede repetirse la misma pareja
-        unique_together = (('pk_codigo_empresa', 'pk_codigo_configuracion'),)
+        unique_together = (
+            ('fk_codigo_empresa', 'fk_codigo_configuracion'),
+        )
     
     def __str__(self):
         return self.nombre
 
 class Sucursal(BaseModel):
     codigo = models.AutoField(primary_key=True)
-    fk_codigo_empresa = models.ForeignKey(Empresa)
+    fk_codigo_empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, db_column='fk_codigo_empresa', related_name='empresa_sucursales')
     id_localidad = models.IntegerField(blank=False, null=False)
     nombre = models.CharField(max_length=200)
     gerente = models.CharField(max_length=200)
@@ -166,7 +174,8 @@ class Usuario(Persona):
     fk_codigo_sucursal = models.ForeignKey(
         Sucursal,
         db_column='fk_codigo_sucursal',
-        related_name='FK_SUCURSAL_USUARIO'
+        related_name='FK_SUCURSAL_USUARIO',
+        on_delete=models.PROTECT
     )
     username = models.CharField(max_length=30)
     password = models.CharField(max_length=300)
@@ -198,37 +207,42 @@ class Menu(BaseModel):
         return self.nombre
 
 class RolMenu(models.Model):
-    pk_codigo_rol = models.ForeignKey(
+    fk_codigo_rol = models.ForeignKey(
         Rol,
-        db_column='pk_codigo_rol',
-        related_name='ROL_MENU'
+        db_column='fk_codigo_rol',
+        related_name='FK_ROL_MENU',
+        on_delete=models.PROTECT
     )
-    pk_codigo_menu = models.ForeignKey(
+    fk_codigo_menu = models.ForeignKey(
         Menu,
-        db_column='pk_codigo_menu',
-        related_name='MENU_ROL'
+        db_column='fk_codigo_menu',
+        related_name='FK_MENU_ROL',
+        on_delete=models.PROTECT
     )
     
 class UsuarioRol(models.Model):
-    pk_codigo_usuario = models.ForeignKey(
+    fk_codigo_usuario = models.ForeignKey(
         Usuario,
-        db_column='pk_codigo_usuario',
-        related_name='USUARIO_ROL'
+        db_column='fk_codigo_usuario',
+        related_name='FK_USUARIO_ROL',
+        on_delete=models.PROTECT
     )
-    pk_codigo_rol = models.ForeignKey(
+    fk_codigo_rol = models.ForeignKey(
         Rol,
-        db_column='pk_codigo_rol',
-        related_name='ROL_USUARIO'
+        db_column='fk_codigo_rol',
+        related_name='FK_ROL_USUARIO',
+        on_delete=models.PROTECT
     )
 
-class IngresoSistema():
+class IngresoSistema(models.Model):
     codigo = models.AutoField(primary_key=True)
     fk_codigo_usuario = models.ForeignKey(
         Usuario,
         db_column='fk_codigo_usuario',
-        related_name='FK_USUARIO_INGRESO'
+        related_name='FK_USUARIO_INGRESO',
+        on_delete=models.PROTECT
     )
-    fecha = models.DateTimeField(auto_now_add=True, auto_now=True)
+    fecha = models.DateTimeField(auto_now_add=True, auto_now=False)
     descripcion = models.CharField(max_length=200, blank=True, null=True)
     ip = models.CharField(max_length=25, blank=True, null=True)
     validador = models.CharField(max_length=25, blank=True, null=True)

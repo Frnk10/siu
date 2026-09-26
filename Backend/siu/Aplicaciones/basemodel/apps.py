@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class BasemodelConfig(AppConfig):
-    name = 'basemodel'
+    name = 'Aplicaciones.basemodel'

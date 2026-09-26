@@ -1,5 +1,5 @@
 from django.db import models
-from Backend.siu.Aplicaciones.basemodel.models import BaseModel
+from Aplicaciones.basemodel.models import BaseModel
 
 class UnidadMedida(BaseModel):
     codigo = models.AutoField(primary_key=True)
@@ -42,9 +42,9 @@ class CentroCosto(BaseModel):
     
 class Producto(BaseModel):    
     codigo = models.AutoField(primary_key=True)
-    fk_codigo_categoria = models.IntegerField(blank=True, null=True)
-    fk_codigo_marca = models.IntegerField(blank=True, null=True)
-    fk_codigo_unidad_medida = models.IntegerField(blank=True, null=True)
+    fk_codigo_categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name='categoria')
+    fk_codigo_marca = models.ForeignKey(Marca, on_delete=models.PROTECT, related_name='marca')
+    fk_codigo_unidad_medida = models.ForeignKey(UnidadMedida, on_delete=models.PROTECT, related_name='unidad_medida')
     id_empresa = models.IntegerField(blank=True, null=True)
     nombre = models.CharField(max_length=250)
     modelo = models.CharField(max_length=100)
@@ -65,6 +65,15 @@ class Producto(BaseModel):
 
     def __str__(self):
         return self.nombre
+
+class ImagenProducto(BaseModel):
+    producto = models.ForeignKey(Producto,on_delete=models.PROTECT)
+    imagen = models.ImageField(upload_to='productos/')
+    principal = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden']
 
 class CentroProducto (BaseModel):
     codigo = models.AutoField(primary_key=True)
