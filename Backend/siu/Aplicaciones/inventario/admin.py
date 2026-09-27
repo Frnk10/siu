@@ -1,7 +1,16 @@
 from django.contrib import admin
 from Aplicaciones.inventario.models import *
 
-admin.site.register(Marca)
-admin.site.register(Categoria)
+class MarcaAdmin(admin.ModelAdmin):
+    list_display = ('codigo','nombre',)
+
+class CategoriaAdmin(admin.ModelAdmin):
+    list_display = ('codigo','nombre',)
+
+class UnidadMedidaAdmin(admin.ModelAdmin):
+    list_display = ('codigo','nombre',)
+    
+admin.site.register(Marca,MarcaAdmin)
+admin.site.register(Categoria,CategoriaAdmin)
+admin.site.register(UnidadMedida,UnidadMedidaAdmin)
 admin.site.register(Producto)
-admin.site.register(UnidadMedida)

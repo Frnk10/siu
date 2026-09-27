@@ -64,7 +64,7 @@ class Producto(BaseModel):
 
 
     def __str__(self):
-        return self.nombre
+        return f"{self.codigo} - {self.nombre}"
 
 class ImagenProducto(BaseModel):
     producto = models.ForeignKey(Producto,on_delete=models.PROTECT)
@@ -75,20 +75,71 @@ class ImagenProducto(BaseModel):
     class Meta:
         ordering = ['orden']
 
-class CentroProducto (BaseModel):
+class CentroProducto(BaseModel):
     codigo = models.AutoField(primary_key=True)
-    fk_codigo_centro_costo = models.IntegerField(blank=True, null=True)
-    fk_codigo_producto = models.IntegerField(blank=True, null=True)
-    stock = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
-    porcentaje_cliente = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
-    precio_venta_cliente = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
-    porcentaje_distribuidor = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
-    precio_venta_distribuidor = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
-    porcentaje_promocion = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
-    precio_venta_promocion = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+
+    fk_codigo_centro_costo = models.ForeignKey(
+        CentroCosto,
+        on_delete=models.PROTECT,
+        related_name='productos'
+    )
+
+    fk_codigo_producto = models.ForeignKey(
+        Producto,
+        on_delete=models.PROTECT,
+        related_name='centros'
+    )
+
+    stock = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0
+    )
+
+    porcentaje_cliente = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    precio_venta_cliente = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    porcentaje_distribuidor = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    precio_venta_distribuidor = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    porcentaje_promocion = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    precio_venta_promocion = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
 
     def __str__(self):
-        return self.nombre
+        return f"{self.fk_codigo_producto} - {self.fk_codigo_centro_costo}"
 
 
 class Kardex(BaseModel):
