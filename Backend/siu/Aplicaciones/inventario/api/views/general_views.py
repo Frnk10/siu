@@ -1,11 +1,8 @@
-from Aplicaciones.basemodel.api import GeneralListAPIView
+from Aplicaciones.basemodel.api import GeneralListarAPIView
 from Aplicaciones.inventario.api.serializers.general_serializers import *
 
-class UnidadMedidaListarAPI(GeneralListAPIView):
+class UnidadMedidaListarAPI(GeneralListarAPIView):
     serializer_class = UnidadMedidaSerializer
 
-class CategoriaListarAPI(GeneralListAPIView):
-    serializer_class = CategoriaSerializer
-
-class MarcaListarAPI(GeneralListAPIView):
+class MarcaListarAPI(GeneralListarAPIView):
     serializer_class = MarcaSerializer

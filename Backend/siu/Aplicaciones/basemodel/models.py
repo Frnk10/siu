@@ -1,11 +1,21 @@
 from django.db import models
 
 class BaseModel(models.Model):
-    estado = models.CharField(default="A", max_length=1, help_text="A=Activo, I=Inactivo")
+    ESTADO_CHOICES = [
+            ('A', 'Activo'),
+            ('I', 'Inactivo'),
+        ]
+    
+    estado = models.CharField(
+         default="A", max_length=1, help_text="A=Activo, I=Inactivo",
+         choices=ESTADO_CHOICES,
+         )
     usuario_crea = models.IntegerField(blank=False, null=False)
     usuario_actualiza = models.IntegerField(blank=True, null=True)
     fecha_crea = models.DateField(auto_now_add=True)
-    fecha_actualiza = models.DateField(auto_now=True)
+    fecha_actualiza = models.DateField(auto_now=False, null=True, blank=True)
+
+    
 
     def crear(self, usuario_crea):
             self.usuario_crea = usuario_crea

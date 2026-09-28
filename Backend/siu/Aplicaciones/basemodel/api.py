@@ -1,6 +1,6 @@
 from rest_framework import generics
 
-class GeneralListAPIView(generics.ListAPIView):
+class GeneralListarAPIView(generics.ListAPIView):
     serializer_class = None
 
     def get_queryset(self):

@@ -1,9 +1,9 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
-from Aplicaciones.basemodel.api import GeneralListAPIView
+from Aplicaciones.basemodel.api import GeneralListarAPIView
 from Aplicaciones.inventario.api.serializers.producto_serializers import *
 
-class ProductoListarAPI(GeneralListAPIView):
+class ProductoListarAPI(GeneralListarAPIView):
     serializer_class = ProductoSerializer
     def get_queryset(self):
         return Producto.objects.filter(estado = "A")
