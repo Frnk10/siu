@@ -20,6 +20,12 @@ class ProductoViewSet(viewsets.ModelViewSet):
         ).first()
 
     def list(self, request):
+        """
+        Listado de Productos
+        
+        
+        precio--->Precio del producto
+        """
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response({
