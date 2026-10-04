@@ -40,6 +40,7 @@ LOCAL_APPS = [
 THIR_APPS = [
     'rest_framework',
     'simple_history',
+    'drf_yasg'
 ]
 
 INSTALLED_APPS = BASE_APPS + LOCAL_APPS + THIR_APPS
