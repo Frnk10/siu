@@ -28,6 +28,7 @@ BASE_APPS = [
 ]
 
 LOCAL_APPS = [
+    'corsheaders',
     'Aplicaciones.user',
     'Aplicaciones.basemodel',
     'Aplicaciones.inventario',
@@ -39,7 +40,7 @@ LOCAL_APPS = [
 
 THIR_APPS = [
     'rest_framework',
-    'simple_history',
+    'rest_framework.authtoken',
     'drf_yasg'
 ]
 
@@ -48,9 +49,18 @@ INSTALLED_APPS = BASE_APPS + LOCAL_APPS + THIR_APPS
 SWAGGER_SETTINGS = {
     'DOC_EXPANSION': 'none'
 }
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    )
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -126,3 +136,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://localhost:3000"
+]
