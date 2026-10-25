@@ -1,0 +1,30 @@
+.swal2-popup.swal-teseracto {
+  border-radius: 18px;
+  padding: 1.8em 1.4em 1.5em;
+  font-family: inherit;
+}
+.swal2-popup.swal-teseracto .swal2-title {
+  color: #0b2a6f;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.swal2-popup.swal-teseracto .swal2-html-container {
+  color: #5b6b8a;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.swal2-popup.swal-teseracto .swal2-confirm,
+.swal2-popup.swal-teseracto .swal2-cancel {
+  border-radius: 10px;
+  padding: 0.65em 1.8em;
+  font-weight: 600;
+  box-shadow: none;
+}
+.swal2-popup.swal-teseracto .swal2-timer-progress-bar {
+  background: #0b66e4;
+}
+.swal2-popup.swal-teseracto-toast {
+  border-radius: 12px;
+  font-family: inherit;
+  box-shadow: 0 8px 24px rgba(11, 42, 111, 0.18);
+}
