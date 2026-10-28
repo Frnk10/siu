@@ -108,7 +108,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
             "telefono", "obligado_contabilidad", "facturacion_electronica",
             "logotipo", "localidad", "localidad_nombre", "estado",
         )
-        read_only_fields = ("codigo", "estado")
+        read_only_fields = ("codigo",)
 
     def get_representante_nombre(self, obj):
         return str(obj.representante) if obj.representante else ""
@@ -151,6 +151,17 @@ class EmpresaSerializer(serializers.ModelSerializer):
             tipo = getattr(value, "content_type", None)
             if tipo and tipo not in LOGO_TIPOS:
                 raise serializers.ValidationError("El logotipo debe ser PNG, JPG o WEBP.")
+        return value
+    
+    def validate_estado(self, value):
+        if value == "A" and self.instance:
+            existe = Empresa.objects.filter(
+                razon_social__iexact=self.instance.razon_social, estado="A"
+            ).exclude(pk=self.instance.pk)
+            if existe.exists():
+                raise serializers.ValidationError(
+                    "No se puede activar: ya existe una empresa activa con esa razón social."
+                )
         return value
 
 

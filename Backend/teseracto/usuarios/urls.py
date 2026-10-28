@@ -12,4 +12,5 @@ router.register("empresa_configuraciones", EmpresaConfiguracionViewSet, basename
 router.register("opciones/usuarios", UsuarioOpcionesViewSet, basename="opciones_usuarios")
 router.register("opciones/localidades", LocalidadOpcionesViewSet, basename="opciones_localidades")
 router.register("menu", MenuViewSet, basename="menu")
+router.register('', ConfigViewSet, basename='config')
 urlpatterns = router.urls

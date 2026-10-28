@@ -167,6 +167,14 @@ DEFAULT_FROM_EMAIL = f'Teseracto Engine <{EMAIL_HOST_USER}>'
 
 STATIC_URL = 'static/'
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATICFILES_DIRS = [BASE_DIR / 'static/']
+
+MEDIA_URL='/media/'
+MEDIA_ROOT=(os.path.join(BASE_DIR,'media/'))
+
+LOGO_URL = f'{STATIC_URL}logo.png'
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration

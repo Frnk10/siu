@@ -59,32 +59,40 @@ from .serializers import (
 )
 
 
+from django.utils import timezone
+from rest_framework import permissions, viewsets
+from rest_framework.exceptions import ValidationError
+
+
 class BaseCrudViewSet(viewsets.ModelViewSet):
-    """CRUD con borrado lógico (estado 'I') y auditoría opcional."""
+    """CRUD con borrado lógico (estado 'I') y auditoría (usuario/fecha)."""
 
     permission_classes = [permissions.IsAuthenticated]
     borrado_logico = True  # False = elimina el registro de verdad
 
+
     def perform_create(self, serializer):
-        extra = {}
-        if hasattr(serializer.Meta.model, "usuario_crea"):
-            extra["usuario_crea"] = self.request.user
-        serializer.save(**extra)
+        # usuario_crea y usuario_actualiza se llenan con el usuario actual.
+        # fecha_crea / fecha_actualiza las pone Django (auto_now_add / auto_now).
+        serializer.save(
+            usuario_crea=self.request.user,
+            usuario_actualiza=self.request.user,
+        )
 
     def perform_update(self, serializer):
-        extra = {}
-        if hasattr(serializer.Meta.model, "usuario_modifica"):
-            extra["usuario_modifica"] = self.request.user
-        serializer.save(**extra)
-
-    def validar_baja(self, instance):
-        """Se sobrescribe en cada viewset para impedir bajas inválidas."""
+        # Si por PATCH/PUT intentan pasar a Inactivo, se aplica la misma validación
+        if serializer.validated_data.get("estado") == "I":
+            self.validar_baja(serializer.instance)
+        serializer.save(usuario_actualiza=self.request.user)
 
     def perform_destroy(self, instance):
         self.validar_baja(instance)
         if self.borrado_logico:
             instance.estado = "I"
-            instance.save(update_fields=["estado"])
+            instance.usuario_actualiza = self.request.user
+            # incluir fecha_actualiza: con update_fields, auto_now solo se
+            # aplica si el campo está en la lista
+            instance.save(update_fields=["estado", "usuario_actualiza", "fecha_actualiza"])
         else:
             instance.delete()
 
@@ -92,15 +100,32 @@ class BaseCrudViewSet(viewsets.ModelViewSet):
 class EmpresaViewSet(BaseCrudViewSet):
     queryset = (
         Empresa.objects.select_related("representante", "localidad")
-        .filter(estado="A")
-        .order_by("razon_social")
+        .order_by("estado")
     )
     serializer_class = EmpresaSerializer
 
     def validar_baja(self, instance):
         if instance.sucursales.filter(estado="A").exists():
             raise ValidationError({"detail": "No se puede eliminar: la empresa tiene sucursales activas."})
+            
+class BorradoLogicoMixin:
+    def perform_create(self, serializer):
+        serializer.save(usuario_crea=self.request.user, usuario_actualiza=self.request.user)
 
+    def perform_update(self, serializer):
+        serializer.save(usuario_actualiza=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        obj = self.get_object()
+        obj.estado = 'I'
+        obj.usuario_actualiza = request.user
+        obj.save(update_fields=['estado', 'usuario_actualiza', 'fecha_actualiza'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class EmpresaViewSet(BorradoLogicoMixin, viewsets.ModelViewSet):
+    queryset = Empresa.objects.all()
+    serializer_class = EmpresaSerializer
+    
 
 class SucursalViewSet(BaseCrudViewSet):
     queryset = (
@@ -217,3 +242,14 @@ class ValidarTokenView(ResetPasswordValidateToken):
                 respuesta.data["segundos_restantes"] = max(0, segundos)
 
         return respuesta
+
+from django.conf import settings
+from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+class ConfigViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]
+
+    def list(self, request):
+        return Response({'logo_url': request.build_absolute_uri(settings.LOGO_URL)})
