@@ -37,7 +37,8 @@ urlpatterns = [
         TokenRefreshView.as_view(),
         name="token_refresh",
     ),
-    path('',include('usuarios.urls')), 
+    path('',include('usuarios.urls')),    
+    path('',include('inventario.urls')), 
     path('logout/',knox_views.LogoutView.as_view(), name='knox_logout'), 
     path('logoutall/',knox_views.LogoutAllView.as_view(), name='knox_logoutall'), 
     

@@ -102,6 +102,16 @@ class Localidad(BaseModel):
     class Meta:
         ordering = ["nivel", "nombre"]
 
+    def ruta_completa(self, separador=", "):
+        partes, actual = [], self
+        while actual:
+            partes.append(actual.nombre)
+            actual = actual.localidad_padre
+        partes.reverse()  # queda: provincia, cantón, parroquia
+        # Quita repetidos seguidos: la cabecera cantonal se llama igual que su cantón
+        partes = [p for i, p in enumerate(partes) if i == 0 or p != partes[i - 1]]
+        return separador.join(partes)
+    
     def __str__(self):
         return self.nombre
 
@@ -167,7 +177,7 @@ class Sucursal(BaseModel):
     )
 
     nombre = models.CharField(max_length=200)
-
+    telefono = models.CharField(max_length=15, blank=True)
     calle_principal = models.CharField(max_length=100, blank=True)
     calle_secundaria = models.CharField(max_length=100, blank=True)
 
@@ -309,10 +319,10 @@ class Proveedor(models.Model):
 
 
 class Empleado(models.Model):
-    usuario = models.ForeignKey(
+    usuario = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="empleados",
+        related_name="empleado",
     )
     empresa = models.ForeignKey(
         Empresa, on_delete=models.PROTECT, related_name="empleados"
@@ -420,7 +430,6 @@ class Configuracion(BaseModel):
     codigo_auxiliar = models.CharField(max_length=30, unique=True)
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=250, blank=True)
-    grupo = models.CharField(max_length=50)
 
     def __str__(self):
         return self.nombre

@@ -100,59 +100,94 @@ class BaseCrudViewSet(viewsets.ModelViewSet):
 class EmpresaViewSet(BaseCrudViewSet):
     queryset = (
         Empresa.objects.select_related("representante", "localidad")
-        .order_by("estado")
+        .order_by("estado", "razon_social")
     )
     serializer_class = EmpresaSerializer
+
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            representante=self.request.user
+        )
 
     def validar_baja(self, instance):
         if instance.sucursales.filter(estado="A").exists():
-            raise ValidationError({"detail": "No se puede eliminar: la empresa tiene sucursales activas."})
-            
-class BorradoLogicoMixin:
-    def perform_create(self, serializer):
-        serializer.save(usuario_crea=self.request.user, usuario_actualiza=self.request.user)
-
-    def perform_update(self, serializer):
-        serializer.save(usuario_actualiza=self.request.user)
-
-    def destroy(self, request, *args, **kwargs):
-        obj = self.get_object()
-        obj.estado = 'I'
-        obj.usuario_actualiza = request.user
-        obj.save(update_fields=['estado', 'usuario_actualiza', 'fecha_actualiza'])
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-class EmpresaViewSet(BorradoLogicoMixin, viewsets.ModelViewSet):
-    queryset = Empresa.objects.all()
-    serializer_class = EmpresaSerializer
-    
-
+            raise ValidationError({
+                "detail": "No se puede eliminar: la empresa tiene sucursales activas."
+            })
+        
 class SucursalViewSet(BaseCrudViewSet):
     queryset = (
         Sucursal.objects.select_related("empresa", "localidad")
-        .filter(estado="A")
-        .order_by("empresa__razon_social", "nombre")
+        .order_by("estado", "nombre")
     )
     serializer_class = SucursalSerializer
 
+    def get_queryset(self):
+        qs = super().get_queryset()
 
+        # Empresas representadas por el usuario autenticado
+        empresas_usuario = Empresa.objects.filter(
+            representante=self.request.user
+        ).values_list("codigo", flat=True)
+
+        # Limitar las sucursales a sus empresas
+        qs = qs.filter(empresa__in=empresas_usuario)
+
+        # Filtro opcional por empresa seleccionada
+        empresa_id = self.request.query_params.get("empresa")
+
+        if empresa_id:
+            qs = qs.filter(empresa_id=empresa_id)
+
+        return qs
+
+    def validar_baja(self, instance):
+        if instance.empresa.estado != "A":
+            raise ValidationError({
+                "detail": "No se puede desactivar: la empresa de esta sucursal está inactiva."
+            })
+        
 class ConfiguracionViewSet(BaseCrudViewSet):
-    queryset = Configuracion.objects.filter(estado="A").order_by("grupo", "nombre")
+    queryset = Configuracion.objects.all().order_by("estado", "nombre")
     serializer_class = ConfiguracionSerializer
 
     def validar_baja(self, instance):
-        if instance.valores_empresa.exists():
-            raise ValidationError({"detail": "No se puede eliminar: hay empresas que usan esta configuración."})
-
+        if instance.valores_empresa.filter(estado="A").exists():
+            raise ValidationError(
+                {"detail": "No se puede desactivar: hay empresas que usan esta configuración."}
+            )
 
 class EmpresaConfiguracionViewSet(BaseCrudViewSet):
-    borrado_logico = False  # evita que un registro inactivo bloquee la restricción única
     queryset = (
         EmpresaConfiguracion.objects.select_related("empresa", "configuracion")
-        .filter(estado="A")
-        .order_by("empresa__razon_social", "configuracion__grupo")
+        .order_by("estado", "configuracion__nombre")
     )
     serializer_class = EmpresaConfiguracionSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        # Obtener todas las empresas representadas por el usuario
+        empresas_usuario = Empresa.objects.filter(
+            representante=self.request.user
+        ).values_list("codigo", flat=True)
+
+        # Restringir las configuraciones a sus empresas
+        qs = qs.filter(empresa__in=empresas_usuario)
+
+        # Filtro opcional por empresa
+        empresa_id = self.request.query_params.get("empresa")
+
+        if empresa_id:
+            qs = qs.filter(empresa_id=empresa_id)
+
+        return qs
+
+    def validar_baja(self, instance):
+        if instance.empresa.estado != "A":
+            raise ValidationError({
+                "detail": "No se puede desactivar: la empresa está inactiva."
+            })
 
 
 # ---------- Opciones para los selects ----------
@@ -163,9 +198,43 @@ class UsuarioOpcionesViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
 
 class LocalidadOpcionesViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    /opciones/localidades/?nivel=1                 -> provincias
+    /opciones/localidades/?nivel=2&padre=<id>      -> cantones de esa provincia
+    /opciones/localidades/?nivel=3&padre=<id>      -> parroquias de ese cantón
+    Sin parámetros: parroquias con ruta completa (como antes, por si otro formulario lo usa).
+    """
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Localidad.objects.all()
-    serializer_class = OpcionSerializer
+    pagination_class = None
+
+    def get_serializer_class(self):
+        if "nivel" in self.request.query_params:
+            return OpcionSerializer
+        return OpcionSerializer
+
+    def get_queryset(self):
+        params = self.request.query_params
+        qs = Localidad.objects.filter(estado="A")
+
+        if "nivel" not in params:
+            return (
+                qs.filter(nivel=3)
+                .select_related("localidad_padre__localidad_padre")
+                .order_by(
+                    "localidad_padre__localidad_padre__nombre",
+                    "localidad_padre__nombre",
+                    "nombre",
+                )
+            )
+
+        if params["nivel"] in ("1", "2", "3"):
+            qs = qs.filter(nivel=int(params["nivel"]))
+        else:
+            qs = qs.none()
+        if params.get("padre", "").isdigit():
+            qs = qs.filter(localidad_padre_id=int(params["padre"]))
+        return qs.order_by("nombre")
+
 
 
 from rest_framework.response import Response
