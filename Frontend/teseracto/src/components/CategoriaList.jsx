@@ -1,9 +1,9 @@
 import CategoryIcon from '@mui/icons-material/CategoryOutlined'
 import CrudTable from './CrudTable'
 
-const columns = [
-  { accessorKey: 'nombre', header: 'Nombre', size: 220 },
+const columns = [  
   { accessorKey: 'padre_nombre', header: 'Categoría padre', size: 200 },
+  { accessorKey: 'nombre', header: 'Nombre', size: 220 },
   { accessorKey: 'empresas_nombres', header: 'Empresas', size: 320 },
 ]
 

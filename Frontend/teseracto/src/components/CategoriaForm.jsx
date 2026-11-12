@@ -14,7 +14,7 @@ import MyMultiSelectField from './forms/MyMultiSelectField'
 import { aplicarErroresServidor } from './utils/errores'
 
 const TEXTO_RE = /^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ ]*$/
-const NINGUNA = { id: '', name: '— Ninguna —' }
+const NINGUNA = { id: '', name: '— SELECCIONE —' }
 
 const schema = yup.object({
   nombre: yup
@@ -133,10 +133,10 @@ const CategoriaForm = () => {
       enviando={isSubmitting}
       onCancelar={() => navigate(volver)}
     >
-      <Box sx={grilla}>
+      <Box sx={grilla}>        
+        <MySelectField label="Categoría padre" name="codigo_padre" control={control} options={padres} flotante />
         <MyTextField label="Nombre" name="nombre" control={control} placeholder="Nombre de la categoría" required />
         <MyMultiSelectField label="Empresas que la verán" name="empresas" control={control} options={empresas} flotante />
-        <MySelectField label="Categoría padre" name="codigo_padre" control={control} options={padres} flotante />
       </Box>
     </FormLayout>
   )
