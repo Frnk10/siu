@@ -1,18 +1,25 @@
+import { Checkbox, FormControlLabel } from '@mui/material'
 import { Controller } from 'react-hook-form'
-import { Checkbox, FormControl, FormControlLabel, FormHelperText } from '@mui/material'
+import { colorTexto } from './Campo'
 
-const MyCheckboxField = ({ label, name, control, width }) => (
+const MyCheckboxField = ({ label, name, control }) => (
   <Controller
     name={name}
     control={control}
-    render={({ field: { value, onChange }, fieldState: { error } }) => (
-      <FormControl sx={{ width }} error={!!error}>
-        <FormControlLabel
-          control={<Checkbox checked={!!value} onChange={(e) => onChange(e.target.checked)} />}
-          label={label}
-        />
-        <FormHelperText>{error?.message}</FormHelperText>
-      </FormControl>
+    render={({ field }) => (
+      <FormControlLabel
+        label={label}
+        sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 14.5, color: colorTexto } }}
+        control={
+          <Checkbox
+            checked={!!field.value}
+            onChange={(e) => field.onChange(e.target.checked)}
+            onBlur={field.onBlur}
+            inputRef={field.ref}
+            sx={{ mr: 0.5, '& .MuiSvgIcon-root': { fontSize: 26 } }}
+          />
+        }
+      />
     )}
   />
 )

@@ -11,11 +11,11 @@ const MyMultilineField = ({ label, name, control, placeholder, width }) => (
         value={field.value ?? ''}
         id={name}
         label={label}
-        variant="standard"
         placeholder={placeholder}
         multiline
-        minRows={3}
-        sx={{ width }}
+        maxRows={4}
+        fullWidth
+        sx={{ width: width || '100%' }}
         error={!!error}
         helperText={error?.message}
       />

@@ -13,6 +13,10 @@ from .serializers import (
     MarcaAdminSerializer, MarcaLecturaSerializer,
     UnidadMedidaAdminSerializer, UnidadMedidaLecturaSerializer,
 )
+import json
+
+from .catalogo_utils import obtener_empresas
+
 
 
 # ---------- Opciones: empresas que representa el usuario ----------
@@ -36,6 +40,29 @@ class AdminCatalogoViewSet(BaseCrudViewSet):
         if empresa and empresa.isdigit() and int(empresa) in ids:
             qs = filtrar_por_empresas(qs, [int(empresa)])
         return qs
+    def perform_destroy(self, instance):
+        permitidas = set(empresas_del_usuario(self.request.user))
+        actuales = set(obtener_empresas(instance))
+
+        # Por defecto se retiran todas tus empresas; con ?empresa=<id> solo esa
+        retirar = actuales & permitidas
+        pedida = self.request.query_params.get("empresa")
+        if pedida:
+            if not pedida.isdigit() or int(pedida) not in retirar:
+                raise ValidationError({"detail": "Este registro no está asignado a esa empresa."})
+            retirar = {int(pedida)}
+
+        restantes = actuales - retirar
+
+        if restantes:
+            # Sigue usándolo otra empresa: solo se le quita la tuya
+            instance.id_texto_Empresa = json.dumps(sorted(restantes))
+            instance.usuario_actualiza = self.request.user
+            instance.save(update_fields=["id_texto_Empresa", "usuario_actualiza", "fecha_actualiza"])
+            return
+
+        # Nadie más lo usa: se desactiva (ejecuta validar_baja)
+        super().perform_destroy(instance)
 
 
 class UnidadMedidaAdminViewSet(AdminCatalogoViewSet):

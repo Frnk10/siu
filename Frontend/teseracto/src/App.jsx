@@ -12,10 +12,14 @@ import EmpresaList from './components/EmpresaList'
 import EmpresaForm from './components/EmpresaForm'
 import SucursalList from './components/SucursalList'
 import SucursalForm from './components/SucursalForm'
-import ConfiguracionList from './components/ConfiguracionList'
-import ConfiguracionForm from './components/ConfiguracionForm'
 import EmpresaConfiguracionList from './components/EmpresaConfiguracionList'
 import EmpresaConfiguracionForm from './components/EmpresaConfiguracionForm'
+import CategoriaList from './components/CategoriaList'
+import CategoriaForm from './components/CategoriaForm'
+import MarcaList from './components/MarcaList'
+import MarcaForm from './components/MarcaForm'
+import UnidadMedidaList from './components/UnidadMedidaList'
+import UnidadMedidaForm from './components/UnidadMedidaForm'
 
 
 function App() {
@@ -44,17 +48,27 @@ function App() {
                 <Route path="/empresas/crear" element={<EmpresaForm />} />
                 <Route path="/empresas/editar/:id" element={<EmpresaForm />} />
 
-                <Route path="/sucursales" element={<SucursalList />} />
-                <Route path="/sucursales/crear" element={<SucursalForm />} />
-                <Route path="/sucursales/editar/:id" element={<SucursalForm />} />
+                <Route path="/empresas/:empresaId/sucursales" element={<SucursalList />} />
+                <Route path="/empresas/:empresaId/sucursales/crear" element={<SucursalForm />} />
+                <Route path="/empresas/:empresaId/sucursales/editar/:id" element={<SucursalForm />} />
 
-                <Route path="/configuraciones" element={<ConfiguracionList />} />
-                <Route path="/configuraciones/crear" element={<ConfiguracionForm />} />
-                <Route path="/configuraciones/editar/:id" element={<ConfiguracionForm />} />
+                <Route path="/empresas/:empresaId/configuracion" element={<EmpresaConfiguracionList />} />
+                <Route path="/empresas/:empresaId/configuracion/crear" element={<EmpresaConfiguracionForm />} />
+                <Route path="/empresas/:empresaId/configuracion/editar/:id" element={<EmpresaConfiguracionForm />} />
 
-                <Route path="/empresa_configuraciones" element={<EmpresaConfiguracionList />} />
-                <Route path="/empresa_configuraciones/crear" element={<EmpresaConfiguracionForm />} />
-                <Route path="/empresa_configuraciones/editar/:id" element={<EmpresaConfiguracionForm />} />
+                <Route path="/unidades_medida" element={<UnidadMedidaList />} />
+                <Route path="/unidades_medida/crear" element={<UnidadMedidaForm />} />
+                <Route path="/unidades_medida/editar/:id" element={<UnidadMedidaForm />} />
+
+                <Route path="/categorias" element={<CategoriaList />} />
+                <Route path="/categorias/crear" element={<CategoriaForm />} />
+                <Route path="/categorias/editar/:id" element={<CategoriaForm />} />
+
+                <Route path="/marcas" element={<MarcaList />} />
+                <Route path="/marcas/crear" element={<MarcaForm />} />
+                <Route path="/marcas/editar/:id" element={<MarcaForm />} />
+
+
               </Route>
             </Routes>
 

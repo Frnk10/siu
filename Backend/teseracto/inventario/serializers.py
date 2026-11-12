@@ -1,7 +1,7 @@
 import json
 
 from rest_framework import serializers
-
+from django.db import transaction
 from .models import Categoria, Marca, UnidadMedida
 from .catalogo_utils import empresas_del_usuario, obtener_empresas, parse_empresas
 from usuarios.models import Empresa
@@ -23,10 +23,6 @@ class EmpresasField(serializers.Field):
         except (ValueError, TypeError):
             raise serializers.ValidationError("Lista de empresas inválida.")
 
-
-# =====================================================
-# ADMIN: mixin común
-# =====================================================
 class AdminCatalogoMixin(serializers.Serializer):
     modelo = None
     etiqueta = "registro"
@@ -45,15 +41,6 @@ class AdminCatalogoMixin(serializers.Serializer):
     def validate_nombre(self, value):
         return validar_nombre(value.strip().upper(), "El nombre", minimo=3, maximo=100)
 
-    def _duplicado(self, campo, valor, ids, mensaje):
-        """Error si otro registro activo con el mismo valor comparte alguna empresa."""
-        qs = self.modelo.objects.filter(**{f"{campo}__iexact": valor}, estado="A")
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        for r in qs:
-            if set(obtener_empresas(r)) & set(ids):
-                raise serializers.ValidationError({campo: mensaje})
-
     def validate(self, attrs):
         attrs = super().validate(attrs)
         permitidas = set(empresas_del_usuario(self.context["request"].user))
@@ -62,7 +49,7 @@ class AdminCatalogoMixin(serializers.Serializer):
             actuales = set(obtener_empresas(self.instance))
             if not actuales <= permitidas:
                 raise serializers.ValidationError(
-                    {"detail": f"No puedes modificar esta {self.etiqueta}: incluye empresas que no representas."}
+                    {"detail": f"No puedes modificar esta {self.etiqueta}: está compartida con empresas que no representas."}
                 )
         else:
             actuales = set()
@@ -77,15 +64,54 @@ class AdminCatalogoMixin(serializers.Serializer):
 
         nombre = attrs.get("nombre", getattr(self.instance, "nombre", None))
         estado = attrs.get("estado", getattr(self.instance, "estado", "A"))
-        if nombre and estado == "A":
-            self._duplicado(
-                "nombre", nombre, ids,
-                f"Ya existe una {self.etiqueta} activa con ese nombre en alguna de las empresas elegidas.",
+
+        # Al EDITAR no se puede tomar el nombre de otro registro activo.
+        # Al CREAR no se valida aquí: si existe, se fusiona en create().
+        if self.instance and nombre and estado == "A":
+            repetido = (
+                self.modelo.objects.filter(nombre__iexact=nombre, estado="A")
+                .exclude(pk=self.instance.pk)
+                .exists()
             )
+            if repetido:
+                raise serializers.ValidationError(
+                    {"nombre": f"Ya existe otra {self.etiqueta} activa con ese nombre."}
+                )
 
         if "id_texto_Empresa" in attrs:
             attrs["id_texto_Empresa"] = json.dumps(ids)
         return attrs
+
+    def validar_compatible(self, existente, validated_data):
+        """Los serializers hijos revisan otros campos antes de compartir un registro."""
+        pass
+
+    def create(self, validated_data):
+        nuevos = set(parse_empresas(validated_data["id_texto_Empresa"]))
+        nombre = validated_data["nombre"]
+
+        with transaction.atomic():
+            existente = (
+                self.modelo.objects.select_for_update()
+                .filter(nombre__iexact=nombre)
+                .first()
+            )
+
+            if existente is None:
+                return super().create(validated_data)
+
+            if existente.estado != "A":
+                raise serializers.ValidationError(
+                    {"nombre": f"Ya existe una {self.etiqueta} con ese nombre, pero está inactiva."}
+                )
+
+            self.validar_compatible(existente, validated_data)
+
+            union = sorted(set(obtener_empresas(existente)) | nuevos)
+            existente.id_texto_Empresa = json.dumps(union)
+            existente.usuario_actualiza = validated_data.get("usuario_actualiza")
+            existente.save(update_fields=["id_texto_Empresa", "usuario_actualiza", "fecha_actualiza"])
+            return existente
 
 
 # =====================================================
@@ -113,6 +139,13 @@ class UnidadMedidaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerialize
                 "Ya existe una unidad activa con esa abreviatura en alguna de las empresas elegidas.",
             )
         return attrs
+    
+    def validar_compatible(self, existente, validated_data):
+        abrev = validated_data.get("abreviatura")
+        if abrev and existente.abreviatura.upper() != abrev.upper():
+            raise serializers.ValidationError({
+                "abreviatura": f"La unidad {existente.nombre} ya existe con la abreviatura {existente.abreviatura}."
+            })
 
 
 class MarcaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerializer):
@@ -165,6 +198,12 @@ class CategoriaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerializer):
                 vistos.add(actual.pk)
                 actual = Categoria.objects.filter(pk=actual.codigo_padre).first() if actual.codigo_padre else None
         return attrs
+
+    def validar_compatible(self, existente, validated_data):
+        if existente.codigo_padre != validated_data.get("codigo_padre"):
+            raise serializers.ValidationError({
+                "codigo_padre": "Esta categoría ya existe con otra categoría padre."
+            })
 
 
 # =====================================================
