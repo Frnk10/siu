@@ -9,6 +9,7 @@ import ConstructionIcon from '@mui/icons-material/Construction'
 import CategoryIcon from '@mui/icons-material/Category';
 import StraightenIcon from '@mui/icons-material/Straighten';
 import BookmarksIcon from '@mui/icons-material/Bookmarks';
+import PersonIcon from '@mui/icons-material/Person';
 
 // El nombre guardado en Menu.icono debe coincidir con una clave de este mapa.
 // Para usar otro icono, impórtalo y agrégalo aquí.
@@ -24,6 +25,7 @@ const ICONOS = {
   CategoryIcon: CategoryIcon,
   StraightenIcon: StraightenIcon,
   BookmarksIcon: BookmarksIcon,
+  PersonIcon: PersonIcon,
 }
 
 export const obtenerIcono = (nombre) => ICONOS[nombre] || FolderIcon

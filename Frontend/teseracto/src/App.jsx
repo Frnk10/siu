@@ -12,6 +12,14 @@ import EmpresaList from './components/EmpresaList'
 import EmpresaForm from './components/EmpresaForm'
 import SucursalList from './components/SucursalList'
 import SucursalForm from './components/SucursalForm'
+
+import EmpleadoList from './components/EmpleadoList'
+import EmpleadoForm from './components/EmpleadoForm'
+import ClienteList from './components/ClienteList'
+import ClienteForm from './components/ClienteForm'
+import ProveedorList from './components/ProveedorList'
+import ProveedorForm from './components/ProveedorForm'
+
 import EmpresaConfiguracionList from './components/EmpresaConfiguracionList'
 import EmpresaConfiguracionForm from './components/EmpresaConfiguracionForm'
 import CategoriaList from './components/CategoriaList'
@@ -68,6 +76,17 @@ function App() {
                 <Route path="/marcas/crear" element={<MarcaForm />} />
                 <Route path="/marcas/editar/:id" element={<MarcaForm />} />
 
+                <Route path="/clientes" element={<ClienteList />} />
+                <Route path="/clientes/crear" element={<ClienteForm />} />
+                <Route path="/clientes/editar/:id" element={<ClienteForm />} />
+
+                <Route path="/proveedores" element={<ProveedorList />} />
+                <Route path="/proveedores/crear" element={<ProveedorForm />} />
+                <Route path="/proveedores/editar/:id" element={<ProveedorForm />} />
+
+                <Route path="/empleados" element={<EmpleadoList />} />
+                <Route path="/empleados/crear" element={<EmpleadoForm />} />
+                <Route path="/empleados/editar/:id" element={<EmpleadoForm />} />
 
               </Route>
             </Routes>
