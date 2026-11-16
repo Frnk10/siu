@@ -19,7 +19,8 @@ const UnidadMedidaList = () => (
     columns={columns}
     campoEstado="estado"
     valorActivo="A"
-    valorInactivo="I"
+    valorInactivo="I"    
+    mostrarColumnaEstado={false}
   />
 )
 

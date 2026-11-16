@@ -53,6 +53,7 @@ const CrudTable = ({
   campoEstado = 'estado',
   valorActivo = 1,
   valorInactivo = 0,
+  mostrarColumnaEstado = true,
   accionesExtra,
   params,
   rutaVolver,
@@ -142,7 +143,7 @@ const CrudTable = ({
 
   // Columna Estado con píldora y filtro desplegable (Activo / Inactivo)
   const columnasFinales = useMemo(() => {
-    if (!campoEstado) return columns
+    if (!campoEstado || !mostrarColumnaEstado) return columns
     return [
       ...columns,
       {

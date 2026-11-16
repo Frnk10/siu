@@ -19,6 +19,7 @@ const MarcaList = () => (
     campoEstado="estado"
     valorActivo="A"
     valorInactivo="I"
+    mostrarColumnaEstado={false}
   />
 )
 

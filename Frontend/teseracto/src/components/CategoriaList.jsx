@@ -20,6 +20,7 @@ const CategoriaList = () => (
     campoEstado="estado"
     valorActivo="A"
     valorInactivo="I"
+    mostrarColumnaEstado={false}
   />
 )
 

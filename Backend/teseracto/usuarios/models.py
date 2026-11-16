@@ -281,6 +281,9 @@ class Usuario(AbstractUser):
 
     def __str__(self):
         return self.get_full_name() or self.username
+
+    class Meta:
+        db_table = 'ususario'
     
 class Cliente(models.Model):
     usuario = models.ForeignKey(
