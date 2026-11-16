@@ -1,11 +1,13 @@
 import json
 
-from rest_framework import serializers
 from django.db import transaction
-from .models import Categoria, Marca, UnidadMedida
-from .catalogo_utils import empresas_del_usuario, obtener_empresas, parse_empresas
+from rest_framework import serializers
+
 from usuarios.models import Empresa
 from validaciones.validaciones_serializers import validar_codigo, validar_nombre
+
+from .catalogo_utils import empresas_del_usuario, obtener_empresas, parse_empresas
+from .models import Categoria, Marca, UnidadMedida
 
 
 # =====================================================
@@ -23,6 +25,12 @@ class EmpresasField(serializers.Field):
         except (ValueError, TypeError):
             raise serializers.ValidationError("Lista de empresas inválida.")
 
+
+# =====================================================
+# ADMIN: mixin común
+# El nombre es único en todo el sistema. Si otra empresa lo crea,
+# se agrega su id a id_texto_Empresa ([1] -> [1, 2]).
+# =====================================================
 class AdminCatalogoMixin(serializers.Serializer):
     modelo = None
     etiqueta = "registro"
@@ -62,20 +70,18 @@ class AdminCatalogoMixin(serializers.Serializer):
         ids = ids if ids is not None else sorted(actuales)
         self._ids = ids
 
-        nombre = attrs.get("nombre", getattr(self.instance, "nombre", None))
-        estado = attrs.get("estado", getattr(self.instance, "estado", "A"))
-
-        # Al EDITAR no se puede tomar el nombre de otro registro activo.
+        # Al EDITAR no se puede tomar el nombre de otro registro.
         # Al CREAR no se valida aquí: si existe, se fusiona en create().
-        if self.instance and nombre and estado == "A":
+        nombre = attrs.get("nombre", getattr(self.instance, "nombre", None))
+        if self.instance and nombre:
             repetido = (
-                self.modelo.objects.filter(nombre__iexact=nombre, estado="A")
+                self.modelo.objects.filter(nombre__iexact=nombre)
                 .exclude(pk=self.instance.pk)
                 .exists()
             )
             if repetido:
                 raise serializers.ValidationError(
-                    {"nombre": f"Ya existe otra {self.etiqueta} activa con ese nombre."}
+                    {"nombre": f"Ya existe otra {self.etiqueta} con ese nombre."}
                 )
 
         if "id_texto_Empresa" in attrs:
@@ -97,14 +103,11 @@ class AdminCatalogoMixin(serializers.Serializer):
                 .first()
             )
 
+            # No existe: se crea nuevo (estado "A" por defecto)
             if existente is None:
                 return super().create(validated_data)
 
-            if existente.estado != "A":
-                raise serializers.ValidationError(
-                    {"nombre": f"Ya existe una {self.etiqueta} con ese nombre, pero está inactiva."}
-                )
-
+            # Ya existe: se agregan las empresas elegidas
             self.validar_compatible(existente, validated_data)
 
             union = sorted(set(obtener_empresas(existente)) | nuevos)
@@ -124,7 +127,7 @@ class UnidadMedidaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerialize
     class Meta:
         model = UnidadMedida
         fields = ("codigo", "abreviatura", "nombre", "empresas", "empresas_nombres", "estado")
-        read_only_fields = ("codigo",)
+        read_only_fields = ("codigo", "estado")
 
     def validate_abreviatura(self, value):
         return validar_codigo(value.strip().upper(), "La abreviatura", minimo=1, maximo=10)
@@ -132,14 +135,17 @@ class UnidadMedidaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerialize
     def validate(self, attrs):
         attrs = super().validate(attrs)
         abrev = attrs.get("abreviatura", getattr(self.instance, "abreviatura", None))
-        estado = attrs.get("estado", getattr(self.instance, "estado", "A"))
-        if abrev and estado == "A":
-            self._duplicado(
-                "abreviatura", abrev, self._ids,
-                "Ya existe una unidad activa con esa abreviatura en alguna de las empresas elegidas.",
-            )
+        nombre = attrs.get("nombre", getattr(self.instance, "nombre", None))
+
+        # La abreviatura no puede pertenecer a otra unidad distinta
+        if abrev and nombre:
+            otras = UnidadMedida.objects.filter(abreviatura__iexact=abrev).exclude(nombre__iexact=nombre)
+            if self.instance:
+                otras = otras.exclude(pk=self.instance.pk)
+            if otras.exists():
+                raise serializers.ValidationError({"abreviatura": "Ya existe otra unidad con esa abreviatura."})
         return attrs
-    
+
     def validar_compatible(self, existente, validated_data):
         abrev = validated_data.get("abreviatura")
         if abrev and existente.abreviatura.upper() != abrev.upper():
@@ -155,7 +161,7 @@ class MarcaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerializer):
     class Meta:
         model = Marca
         fields = ("codigo", "nombre", "empresas", "empresas_nombres", "estado")
-        read_only_fields = ("codigo",)
+        read_only_fields = ("codigo", "estado")
 
 
 class CategoriaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerializer):
@@ -166,7 +172,7 @@ class CategoriaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerializer):
     class Meta:
         model = Categoria
         fields = ("codigo", "codigo_padre", "padre_nombre", "nombre", "empresas", "empresas_nombres", "estado")
-        read_only_fields = ("codigo",)
+        read_only_fields = ("codigo", "estado")
 
     def get_padre_nombre(self, obj):
         if not obj.codigo_padre:
@@ -182,8 +188,6 @@ class CategoriaAdminSerializer(AdminCatalogoMixin, serializers.ModelSerializer):
         padre = Categoria.objects.filter(pk=padre_id).first()
         if not padre:
             raise serializers.ValidationError({"codigo_padre": "La categoría padre no existe."})
-        if padre.estado != "A":
-            raise serializers.ValidationError({"codigo_padre": "La categoría padre está inactiva."})
         # El padre debe estar disponible en todas las empresas de la hija
         if not set(self._ids) <= set(obtener_empresas(padre)):
             raise serializers.ValidationError(

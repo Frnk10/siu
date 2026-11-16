@@ -10,6 +10,9 @@ class UnidadMedida(BaseModel):
     def __str__(self):
         return self.nombre
 
+    class Meta:
+                db_table = 'unidade_medida'
+
 class Categoria(BaseModel):
     codigo = models.AutoField(primary_key=True)
     codigo_padre = models.IntegerField(blank=True, null=True)
@@ -19,6 +22,9 @@ class Categoria(BaseModel):
     def __str__(self):
         return self.nombre
 
+    class Meta:
+                db_table = 'categoria'
+
 class Marca(BaseModel):
     codigo = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100)
@@ -26,3 +32,157 @@ class Marca(BaseModel):
 
     def __str__(self):
         return self.nombre
+
+    class Meta:
+                db_table = 'marca'
+
+class CentroCosto(BaseModel):
+    codigo = models.AutoField(primary_key=True)
+    fk_codigo_sucursal = models.IntegerField(blank=True, null=True)
+    codigo_padre = models.IntegerField(blank=True, null=True)
+    nombre = models.CharField(max_length=50)
+    tipo = models.CharField(max_length=1, default='B', help_text="B=BODEGA, A=ALMACEN")
+    categoria = models.CharField(max_length=1, default='F', help_text="F=FISICO, L=LOGICO")
+    ubicacion = models.CharField(max_length=50, blank=True, null=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+                db_table = 'centro_costo'
+    
+class Producto(BaseModel):    
+    codigo = models.AutoField(primary_key=True)
+    fk_codigo_categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, related_name='categoria')
+    fk_codigo_marca = models.ForeignKey(Marca, on_delete=models.PROTECT, related_name='marca')
+    fk_codigo_unidad_medida = models.ForeignKey(UnidadMedida, on_delete=models.PROTECT, related_name='unidad_medida')
+    id_empresa = models.IntegerField(blank=True, null=True)
+    nombre = models.CharField(max_length=250)
+    modelo = models.CharField(max_length=100)
+    stock_minimo = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    stock_maximo = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    stock = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    precio_compra = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    porcentaje_cliente = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    precio_venta_cliente = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    porcentaje_distribuidor = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    precio_venta_distribuidor = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    porcentaje_promocion = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    precio_venta_promocion = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    estado_promocion = models.CharField(max_length=1, default='N', help_text="N=NO, S=SI")
+    tipo = models.CharField(max_length=1, default='P', help_text="P=PRODUCTO, S=SERVICIO")
+    caracteristica = models.CharField(max_length=100, blank=True, null=True)
+
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+    class Meta:
+                db_table = 'producto'
+
+
+class ImagenProducto(BaseModel):
+    producto = models.ForeignKey(Producto,on_delete=models.PROTECT)
+    imagen = models.ImageField(upload_to='productos/')
+    principal = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['orden']
+        db_table = 'imagen_producto'
+
+class CentroProducto(BaseModel):
+    codigo = models.AutoField(primary_key=True)
+
+    fk_codigo_centro_costo = models.ForeignKey(
+        CentroCosto,
+        on_delete=models.PROTECT,
+        related_name='productos'
+    )
+
+    fk_codigo_producto = models.ForeignKey(
+        Producto,
+        on_delete=models.PROTECT,
+        related_name='centros'
+    )
+
+    stock = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0
+    )
+
+    porcentaje_cliente = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    precio_venta_cliente = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    porcentaje_distribuidor = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    precio_venta_distribuidor = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    porcentaje_promocion = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    precio_venta_promocion = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True
+    )
+
+    def __str__(self):
+        return f"{self.fk_codigo_producto} - {self.fk_codigo_centro_costo}"
+
+    class Meta:
+                db_table = 'centro_producto'
+
+
+class Kardex(BaseModel):
+    codigo = models.AutoField(primary_key=True)
+    id_empresa = models.IntegerField(blank=True, null=True)
+    id_comprobante = models.IntegerField(blank=True, null=True)
+    tipo_movimiento = models.CharField(max_length=1, default='I', help_text="I=INGRESO, S=SALIDA")
+    id_bodega = models.IntegerField(blank=True, null=True)
+    id_compra = models.IntegerField(blank=True, null=True)
+    id_producto = models.IntegerField(blank=True, null=True)
+    id_venta = models.IntegerField(blank=True, null=True)
+    detalle = models.CharField(max_length=100, blank=True, null=True)
+    cantidad_entrada = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    costo_unitario_entrada = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    costo_total_entrada = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    cantidad_salida = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    costo_unitario_salida = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    costo_total_salida = models.DecimalField(max_digits=8,decimal_places=2, blank=True, null=True)
+    fecha_contable = models.DateField(blank=True, null=True)
+    fecha_documento= models.DateField(blank=True, null=True)
+    
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+                db_table = 'kardex'

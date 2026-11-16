@@ -1,9 +1,10 @@
-
+# ============================================================
+# Login
+# ============================================================
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets, permissions, status
-from rest_framework.response import Response
-
 from knox.models import AuthToken
+from rest_framework import permissions, status, viewsets
+from rest_framework.response import Response
 
 from .serializers import LoginSerializer
 
@@ -17,14 +18,11 @@ class LoginViewset(viewsets.ViewSet):
     def create(self, request):
         serializer = self.serializer_class(
             data=request.data,
-            context={"request": request}
+            context={"request": request},
         )
 
         if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         # El LoginSerializer ya validó las credenciales.
         user = serializer.validated_data["user"]
@@ -36,20 +34,20 @@ class LoginViewset(viewsets.ViewSet):
         user_data = LoginSerializer(user).data
 
         return Response(
-            {
-                "user": user_data,
-                "token": token
-            },
-            status=status.HTTP_200_OK
+            {"user": user_data, "token": token},
+            status=status.HTTP_200_OK,
         )
 
 
-
-
-from rest_framework import mixins
+# ============================================================
+# CRUD de empresas, sucursales y configuraciones
+# ============================================================
+from django.contrib.auth import get_user_model
+from rest_framework import mixins, permissions, viewsets
 from rest_framework.exceptions import ValidationError
 
-from .models import Configuracion, Empresa, EmpresaConfiguracion, Sucursal, Localidad
+from .models import Configuracion, Empresa, EmpresaConfiguracion, Localidad, Sucursal
+from .permissions import ModeloPermisos
 from .serializers import (
     ConfiguracionSerializer,
     EmpresaConfiguracionSerializer,
@@ -59,20 +57,17 @@ from .serializers import (
 )
 
 
-from django.utils import timezone
-from rest_framework import permissions, viewsets
-from rest_framework.exceptions import ValidationError
-
-
 class BaseCrudViewSet(viewsets.ModelViewSet):
-    """CRUD con borrado lógico (estado 'I') y auditoría (usuario/fecha)."""
+    """CRUD con borrado lógico (estado 'I'), auditoría y permisos por modelo."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [ModeloPermisos]  # ya exige estar autenticado
     borrado_logico = True  # False = elimina el registro de verdad
 
+    def validar_baja(self, instance):
+        """Los ViewSets que necesiten reglas de baja la sobrescriben."""
+        pass
 
     def perform_create(self, serializer):
-        # usuario_crea y usuario_actualiza se llenan con el usuario actual.
         # fecha_crea / fecha_actualiza las pone Django (auto_now_add / auto_now).
         serializer.save(
             usuario_crea=self.request.user,
@@ -105,16 +100,15 @@ class EmpresaViewSet(BaseCrudViewSet):
     serializer_class = EmpresaSerializer
 
     def get_queryset(self):
-        return super().get_queryset().filter(
-            representante=self.request.user
-        )
+        return super().get_queryset().filter(representante=self.request.user)
 
     def validar_baja(self, instance):
         if instance.sucursales.filter(estado="A").exists():
-            raise ValidationError({
-                "detail": "No se puede eliminar: la empresa tiene sucursales activas."
-            })
-        
+            raise ValidationError(
+                {"detail": "No se puede eliminar: la empresa tiene sucursales activas."}
+            )
+
+
 class SucursalViewSet(BaseCrudViewSet):
     queryset = (
         Sucursal.objects.select_related("empresa", "localidad")
@@ -135,7 +129,6 @@ class SucursalViewSet(BaseCrudViewSet):
 
         # Filtro opcional por empresa seleccionada
         empresa_id = self.request.query_params.get("empresa")
-
         if empresa_id:
             qs = qs.filter(empresa_id=empresa_id)
 
@@ -143,10 +136,11 @@ class SucursalViewSet(BaseCrudViewSet):
 
     def validar_baja(self, instance):
         if instance.empresa.estado != "A":
-            raise ValidationError({
-                "detail": "No se puede desactivar: la empresa de esta sucursal está inactiva."
-            })
-        
+            raise ValidationError(
+                {"detail": "No se puede desactivar: la empresa de esta sucursal está inactiva."}
+            )
+
+
 class ConfiguracionViewSet(BaseCrudViewSet):
     queryset = Configuracion.objects.all().order_by("estado", "nombre")
     serializer_class = ConfiguracionSerializer
@@ -156,6 +150,7 @@ class ConfiguracionViewSet(BaseCrudViewSet):
             raise ValidationError(
                 {"detail": "No se puede desactivar: hay empresas que usan esta configuración."}
             )
+
 
 class EmpresaConfiguracionViewSet(BaseCrudViewSet):
     queryset = (
@@ -167,7 +162,7 @@ class EmpresaConfiguracionViewSet(BaseCrudViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
 
-        # Obtener todas las empresas representadas por el usuario
+        # Empresas representadas por el usuario
         empresas_usuario = Empresa.objects.filter(
             representante=self.request.user
         ).values_list("codigo", flat=True)
@@ -177,7 +172,6 @@ class EmpresaConfiguracionViewSet(BaseCrudViewSet):
 
         # Filtro opcional por empresa
         empresa_id = self.request.query_params.get("empresa")
-
         if empresa_id:
             qs = qs.filter(empresa_id=empresa_id)
 
@@ -185,15 +179,18 @@ class EmpresaConfiguracionViewSet(BaseCrudViewSet):
 
     def validar_baja(self, instance):
         if instance.empresa.estado != "A":
-            raise ValidationError({
-                "detail": "No se puede desactivar: la empresa está inactiva."
-            })
+            raise ValidationError(
+                {"detail": "No se puede desactivar: la empresa está inactiva."}
+            )
 
 
-# ---------- Opciones para los selects ----------
+# ---------- Opciones para los selects (permisos propios) ----------
 class UsuarioOpcionesViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
-    queryset = get_user_model().objects.filter(is_active=True).order_by("first_name", "last_name", "username")
+    queryset = (
+        get_user_model().objects.filter(is_active=True)
+        .order_by("first_name", "last_name", "username")
+    )
     serializer_class = OpcionSerializer
 
 
@@ -202,15 +199,11 @@ class LocalidadOpcionesViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     /opciones/localidades/?nivel=1                 -> provincias
     /opciones/localidades/?nivel=2&padre=<id>      -> cantones de esa provincia
     /opciones/localidades/?nivel=3&padre=<id>      -> parroquias de ese cantón
-    Sin parámetros: parroquias con ruta completa (como antes, por si otro formulario lo usa).
+    Sin parámetros: parroquias con ruta completa.
     """
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
-
-    def get_serializer_class(self):
-        if "nivel" in self.request.query_params:
-            return OpcionSerializer
-        return OpcionSerializer
+    serializer_class = OpcionSerializer
 
     def get_queryset(self):
         params = self.request.query_params
@@ -236,12 +229,9 @@ class LocalidadOpcionesViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return qs.order_by("nombre")
 
 
-
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
-from usuarios.menu_service import menu_para_usuario
-
+# ============================================================
+# Menú
+# ============================================================
 from rest_framework import permissions, viewsets
 from rest_framework.response import Response
 
@@ -253,6 +243,11 @@ class MenuViewSet(viewsets.ViewSet):
 
     def list(self, request):
         return Response(menu_para_usuario(request.user))
+
+
+# ============================================================
+# Recuperación de contraseña
+# ============================================================
 import hashlib
 from datetime import timedelta
 
@@ -312,13 +307,18 @@ class ValidarTokenView(ResetPasswordValidateToken):
 
         return respuesta
 
+
+# ============================================================
+# Configuración pública
+# ============================================================
 from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+
 class ConfigViewSet(viewsets.ViewSet):
     permission_classes = [AllowAny]
 
     def list(self, request):
-        return Response({'logo_url': request.build_absolute_uri(settings.LOGO_URL)})
+        return Response({"logo_url": request.build_absolute_uri(settings.LOGO_URL)})

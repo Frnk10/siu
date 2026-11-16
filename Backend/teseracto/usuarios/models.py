@@ -55,6 +55,9 @@ class Genero(BaseModel):
     def __str__(self):
         return self.nombre
 
+    class Meta:
+                db_table = 'genero'
+
 
 class EstadoCivil(BaseModel):
     codigo = models.AutoField(primary_key=True)
@@ -62,6 +65,9 @@ class EstadoCivil(BaseModel):
 
     def __str__(self):
         return self.nombre
+
+    class Meta:
+                db_table = 'estadocivil'
 
 
 class GrupoSanguineo(BaseModel):
@@ -71,6 +77,9 @@ class GrupoSanguineo(BaseModel):
     def __str__(self):
         return self.nombre
 
+    class Meta:
+                db_table = 'gruposanguineo'
+
 
 class Instruccion(BaseModel):
     codigo = models.AutoField(primary_key=True)
@@ -78,6 +87,9 @@ class Instruccion(BaseModel):
 
     def __str__(self):
         return self.nombre
+
+class Meta:
+            db_table = 'instruccion'
 
 
 class Localidad(BaseModel):
@@ -114,6 +126,9 @@ class Localidad(BaseModel):
     
     def __str__(self):
         return self.nombre
+
+    class Meta:
+                db_table = 'localidad'
 
 # =========================================================
 # EMPRESAS Y SUCURSALES
@@ -158,6 +173,9 @@ class Empresa(BaseModel):
     def __str__(self):
         return self.razon_social
 
+    class Meta:
+            db_table = 'empresa'
+
 
 class Sucursal(BaseModel):
     codigo = models.AutoField(primary_key=True)
@@ -183,6 +201,9 @@ class Sucursal(BaseModel):
 
     def __str__(self):
         return f"{self.empresa.razon_social} - {self.nombre}"
+
+    class Meta:
+                db_table = 'sucursal'
 
 
 # =========================================================
@@ -283,65 +304,131 @@ class Usuario(AbstractUser):
         return self.get_full_name() or self.username
 
     class Meta:
-        db_table = 'ususario'
+        db_table = 'usuario'
+
+
+
+class Empleado(Usuario):
+    # Un empleado trabaja en una sola empresa
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.PROTECT, related_name="empleados",
+    )
+    sucursal = models.ForeignKey(
+        Sucursal, on_delete=models.PROTECT, related_name="empleados",
+        null=True, blank=True,
+    )
+    fecha_ingreso = models.DateField()
+    salario = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    banco = models.CharField(max_length=100, blank=True)
+    tipo_cuenta = models.CharField(max_length=20, blank=True)
+    numero_cuenta = models.CharField(max_length=30, blank=True)
+
+    contacto_emergencia = models.CharField(max_length=150, blank=True)
+    descripcion_emergencia = models.CharField(max_length=250, blank=True)
+
+    class Meta:
+        verbose_name = "Empleado"
+        verbose_name_plural = "Empleados"
+
+    def __str__(self):
+        return self.get_full_name() or self.username
+
+    class Meta:
+            db_table = 'empleado'
+
+
+class Cliente(Usuario):
+    # Un cliente puede pertenecer a varias empresas
+    empresas = models.ManyToManyField(
+        Empresa, through="ClienteEmpresa", related_name="clientes",
+    )
+    observaciones = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Cliente"
+        verbose_name_plural = "Clientes"
+
+    def __str__(self):
+        return self.get_full_name() or self.username
+
+    class Meta:
+            db_table = 'cliente'
+
+
+class ClienteEmpresa(BaseModel):
+    # Datos del cliente que cambian según la empresa
+    cliente = models.ForeignKey(
+        Cliente, on_delete=models.PROTECT, related_name="vinculos",
+    )
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.PROTECT, related_name="vinculos_clientes",
+    )
+    limite_credito = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    dias_credito = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cliente", "empresa"], name="uq_cliente_empresa",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.cliente} - {self.empresa}"
+
+    class Meta:
+            db_table = 'cliente_empresa'
+
+
+class Proveedor(Usuario):
+    # Un proveedor puede pertenecer a varias empresas
+    empresas = models.ManyToManyField(
+        Empresa, through="ProveedorEmpresa", related_name="proveedores",
+    )
+    link_catalogo = models.URLField(max_length=500, blank=True, null=True)
+
+    banco = models.CharField(max_length=100, blank=True)
+    tipo_cuenta = models.CharField(max_length=20, blank=True)
+    numero_cuenta = models.CharField(max_length=30, blank=True)
+
+    observaciones = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Proveedor"
+        verbose_name_plural = "Proveedores"
+
+    def __str__(self):
+        return self.get_full_name() or self.username
+
+    class Meta:
+            db_table = 'proveedor'
+
+class ProveedorEmpresa(BaseModel):
+    proveedor = models.ForeignKey(
+        Proveedor, on_delete=models.PROTECT, related_name="vinculos",
+    )
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.PROTECT, related_name="vinculos_proveedores",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["proveedor", "empresa"], name="uq_proveedor_empresa",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.proveedor} - {self.empresa}"
     
-class Cliente(models.Model):
-    usuario = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="clientes",
-    )
-    empresa = models.ForeignKey(
-        Empresa, on_delete=models.PROTECT, related_name="clientes"
-    )
-
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["usuario", "empresa"], name="uniq_cliente_usuario_empresa"
-            )
-        ]
-
-
-class Proveedor(models.Model):
-    usuario = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="proveedores",
-    )
-    empresa = models.ForeignKey(
-        Empresa, on_delete=models.PROTECT, related_name="proveedores"
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["usuario", "empresa"], name="uniq_proveedor_usuario_empresa"
-            )
-        ]
-
-
-class Empleado(models.Model):
-    usuario = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="empleado",
-    )
-    empresa = models.ForeignKey(
-        Empresa, on_delete=models.PROTECT, related_name="empleados"
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["usuario", "empresa"], name="uniq_empleado_usuario_empresa"
-            )
-        ]
-
+                db_table = 'proveedor_empresa'
 
 
 class Menu(BaseModel):
     id = models.AutoField(primary_key=True)
+
     padre = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -349,6 +436,7 @@ class Menu(BaseModel):
         blank=True,
         related_name='hijos'
     )
+
     permission_required = models.ForeignKey(
         Permission,
         on_delete=models.SET_NULL,
@@ -357,73 +445,65 @@ class Menu(BaseModel):
         verbose_name="Permiso requerido",
         help_text="Permiso específico necesario para acceder a este menú"
     )
+
     nombre = models.CharField(max_length=100, blank=True)
     url = models.CharField(max_length=200, blank=True)
     icono = models.CharField(max_length=50, blank=True)
-    orden = models.PositiveIntegerField(default=0, help_text="Orden de visualización")
- 
+    orden = models.PositiveIntegerField(
+        default=0,
+        help_text="Orden de visualización"
+    )
+
     class Meta:
         db_table = 'menu'
         verbose_name = 'Menú'
         verbose_name_plural = 'Menús'
         ordering = ['orden', 'id']
- 
+
     def __str__(self):
         return self.nombre or f"Menú {self.id}"
- 
-    def get_hijos_visibles(self, user):
-        # Usuario no autenticado o inactivo: no ve nada
-        if not user or not user.is_authenticated or not user.is_active:
-            return self.hijos.none()
- 
-        base = self.hijos.filter(estado="A")
- 
-        # Superusuario: ve todos los hijos activos
-        if user.is_superuser:
-            return base
- 
-        # Resto: solo los hijos asignados a sus grupos
-        grupos_ids = user.groups.values_list("id", flat=True)
-        return base.filter(accesos__grupo_id__in=grupos_ids).distinct()
- 
+
     def es_accesible_para(self, user):
         if not user or not user.is_authenticated or not user.is_active:
             return False
- 
+
         if user.is_superuser:
             return True
- 
-        return AccesoMenu.objects.filter(
-            menu=self,
-            grupo__in=user.groups.all(),
-        ).exists()
+
+        # Si no tiene permiso asociado, no es accesible
+        if not self.permission_required:
+            return False
+
+        permiso = self.permission_required
+
+        permiso_completo = (
+            f"{permiso.content_type.app_label}.{permiso.codename}"
+        )
+
+        return user.has_perm(permiso_completo)
+
+    def get_hijos_visibles(self, user):
+        if not user or not user.is_authenticated or not user.is_active:
+            return self.hijos.none()
+
+        hijos = self.hijos.filter(estado="A").select_related(
+            "permission_required__content_type"
+        )
+
+        if user.is_superuser:
+            return hijos
+
+        # Filtrar hijos según los permisos del usuario
+        hijos_visibles = [
+            hijo.id
+            for hijo in hijos
+            if hijo.es_accesible_para(user)
+        ]
+
+        return hijos.filter(id__in=hijos_visibles)
 
 
-class AccesoMenu(models.Model):
-    id = models.AutoField(primary_key=True)
-    menu = models.ForeignKey(
-        Menu, 
-        on_delete=models.CASCADE,
-        verbose_name='Menú',
-        related_name='accesos'
-    )
-    grupo = models.ForeignKey(
-        Group, 
-        on_delete=models.CASCADE,
-        verbose_name='Grupo',
-        related_name='accesos_menu'
-    )
-
-    class Meta:
-        db_table = 'acceso_menu'
-        verbose_name = 'Acceso a Menú'
-        verbose_name_plural = 'Accesos a Menús'
-        unique_together = [['menu', 'grupo']]
-
-    def __str__(self):
-        return f"{self.menu.nombre} - {self.grupo.name}"
-
-
+    
 # =========================================================
 # CONFIGURACIÓN DE EMPRESA
 # =========================================================
@@ -436,6 +516,9 @@ class Configuracion(BaseModel):
 
     def __str__(self):
         return self.nombre
+
+    class Meta:
+            db_table = 'configuracion'
 
 
 class EmpresaConfiguracion(BaseModel):
@@ -452,6 +535,7 @@ class EmpresaConfiguracion(BaseModel):
     valor = models.TextField(blank=True)
 
     class Meta:
+        db_table = 'empresa_configuracion'
         constraints = [
             models.UniqueConstraint(
                 fields=["empresa", "configuracion"],
