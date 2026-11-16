@@ -7,6 +7,9 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 
 from .serializers import LoginSerializer
+from .acceso import empresas_permitidas
+from .models import ClienteEmpresa, Empleado, ProveedorEmpresa
+from .serializers import ClienteSerializer, EmpleadoSerializer, ProveedorSerializer
 
 User = get_user_model()
 
@@ -322,3 +325,67 @@ class ConfigViewSet(viewsets.ViewSet):
 
     def list(self, request):
         return Response({"logo_url": request.build_absolute_uri(settings.LOGO_URL)})
+
+
+# =========================================================
+# Empleados, clientes y proveedores
+# =========================================================
+class _PorEmpresaViewSet(BaseCrudViewSet):
+    """
+    Solo muestra registros de las empresas del usuario: las que representa
+    o aquella en la que trabaja como empleado.
+    """
+
+    def get_queryset(self):
+        qs = super().get_queryset().filter(
+            empresa_id__in=empresas_permitidas(self.request.user)
+        )
+        empresa = self.request.query_params.get("empresa")  # filtro opcional
+        if empresa and empresa.isdigit():
+            qs = qs.filter(empresa_id=int(empresa))
+        return qs
+
+
+class ClienteViewSet(_PorEmpresaViewSet):
+    # DELETE = desactivar el vínculo (estado "I"); la persona no se toca
+    queryset = (
+        ClienteEmpresa.objects.select_related("empresa", "cliente")
+        .order_by("estado", "cliente__last_name", "cliente__first_name")
+    )
+    serializer_class = ClienteSerializer
+
+
+class ProveedorViewSet(_PorEmpresaViewSet):
+    # DELETE = desactivar el vínculo (estado "I"); la persona no se toca
+    queryset = (
+        ProveedorEmpresa.objects.select_related("empresa", "proveedor")
+        .order_by("estado", "proveedor__last_name", "proveedor__first_name")
+    )
+    serializer_class = ProveedorSerializer
+
+
+class EmpleadoViewSet(_PorEmpresaViewSet):
+    queryset = (
+        Empleado.objects.select_related("empresa", "sucursal")
+        .order_by("-is_active", "last_name", "first_name")
+    )
+    serializer_class = EmpleadoSerializer
+
+    def _validar_no_propio(self, instance):
+        if instance.pk == self.request.user.pk:
+            raise ValidationError({"detail": "No puedes desactivar tu propia cuenta."})
+
+    def perform_update(self, serializer):
+        # Empleado usa is_active en lugar de estado, así que BaseCrudViewSet no lo detecta
+        if serializer.validated_data.get("is_active") is False:
+            self._validar_no_propio(serializer.instance)
+            self.validar_baja(serializer.instance)
+        serializer.save(usuario_actualiza=self.request.user)
+
+    def perform_destroy(self, instance):
+        # Usuario no tiene campo estado: se desactiva con is_active
+        self._validar_no_propio(instance)
+        self.validar_baja(instance)
+        instance.is_active = False
+        instance.usuario_actualiza = self.request.user
+        instance.save(update_fields=["is_active", "usuario_actualiza", "fecha_actualiza"])

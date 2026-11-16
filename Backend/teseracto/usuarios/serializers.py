@@ -1,18 +1,33 @@
 import re
 
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.password_validation import validate_password as validar_clave
+from django.db import transaction
 from rest_framework import serializers
 
-from .models import Configuracion, Empresa, EmpresaConfiguracion, Sucursal
 from validaciones.validaciones_serializers import (
+    validar_codigo,
     validar_fecha_rango,
     validar_logotipo,
+    validar_nombre,
     validar_reactivacion,
     validar_telefono,
     validar_texto,
-    validar_codigo,
-    validar_nombre,
     validar_unico,
+)
+
+from .acceso import empresas_permitidas
+from .models import (
+    Cliente,
+    ClienteEmpresa,
+    Configuracion,
+    Empleado,
+    Empresa,
+    EmpresaConfiguracion,
+    Localidad,
+    Proveedor,
+    ProveedorEmpresa,
+    Sucursal,
 )
 
 User = get_user_model()
@@ -24,9 +39,6 @@ CODIGO_RE = re.compile(r"^[A-Z0-9_]+$")
 def limpiar(texto):
     """Quita espacios al inicio/fin y colapsa espacios repetidos."""
     return " ".join((texto or "").split())
-
-
-from .models import Localidad
 
 
 def _campo_padre():
@@ -57,7 +69,8 @@ class LocalidadJerarquiaMixin(serializers.Serializer):
     def get_localidad_provincia(self, obj):
         c = self._cadena(obj)
         return c[2].pk if len(c) > 2 else None
-    
+
+
 # =========================================================
 # LOGIN
 # =========================================================
@@ -118,8 +131,7 @@ class EmpresaSerializer(LocalidadJerarquiaMixin, serializers.ModelSerializer):
     )
     logotipo = serializers.ImageField(required=False, allow_null=True)
     representante_nombre = serializers.SerializerMethodField()
-    localidad_nombre = serializers.SerializerMethodField() 
-
+    localidad_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Empresa
@@ -127,14 +139,14 @@ class EmpresaSerializer(LocalidadJerarquiaMixin, serializers.ModelSerializer):
             "codigo", "razon_social", "representante", "representante_nombre",
             "fecha_constitucion", "calle_principal", "calle_secundaria",
             "telefono", "obligado_contabilidad", "facturacion_electronica",
-            "logotipo", "localidad", "localidad_nombre", "localidad_canton", "localidad_provincia", "estado",
+            "logotipo", "localidad", "localidad_nombre", "localidad_canton",
+            "localidad_provincia", "estado",
         )
         read_only_fields = ("codigo",)
 
     def get_representante_nombre(self, obj):
         return str(obj.representante) if obj.representante else ""
 
-    
     def validate_razon_social(self, value):
         value = validar_texto(limpiar(value), "La razón social", minimo=3, maximo=200)
         existe = Empresa.objects.filter(razon_social__iexact=value, estado="A")
@@ -165,21 +177,20 @@ class EmpresaSerializer(LocalidadJerarquiaMixin, serializers.ModelSerializer):
     def get_localidad_nombre(self, obj):
         return obj.localidad.ruta_completa() if obj.localidad else ""
 
+
 # =========================================================
 # SUCURSAL
 # =========================================================
-from rest_framework.exceptions import ValidationError
-
 class SucursalSerializer(LocalidadJerarquiaMixin, serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.razon_social", read_only=True)
-    localidad_nombre = serializers.SerializerMethodField() 
+    localidad_nombre = serializers.SerializerMethodField()
 
     class Meta:
         model = Sucursal
         fields = (
             "codigo", "empresa", "empresa_nombre", "nombre", "telefono",
             "calle_principal", "calle_secundaria", "localidad",
-            "localidad_nombre",  "localidad_canton", "localidad_provincia", "estado",
+            "localidad_nombre", "localidad_canton", "localidad_provincia", "estado",
         )
         read_only_fields = ("codigo",)
 
@@ -213,18 +224,17 @@ class SucursalSerializer(LocalidadJerarquiaMixin, serializers.ModelSerializer):
         return attrs
 
     def validate_estado(self, value):
-        return validar_reactivacion(value, self.instance, Sucursal, "nombre", "una sucursal")
-
-    def get_localidad_nombre(self, obj):
-            return obj.localidad.ruta_completa() if obj.localidad else ""
-
-    def validate_estado(self, value):
         if value == "A" and self.instance and self.instance.empresa.estado != "A":
             raise serializers.ValidationError("No se puede activar: la empresa está inactiva.")
         return validar_reactivacion(value, self.instance, Sucursal, "nombre", "una sucursal")
-    
-    
 
+    def get_localidad_nombre(self, obj):
+        return obj.localidad.ruta_completa() if obj.localidad else ""
+
+
+# =========================================================
+# CONFIGURACIÓN
+# =========================================================
 class ConfiguracionSerializer(serializers.ModelSerializer):
     codigo_auxiliar = serializers.CharField(
         max_length=30,
@@ -254,12 +264,13 @@ class ConfiguracionSerializer(serializers.ModelSerializer):
             "Ya existe una configuración activa con ese nombre.",
             solo_activos=True,
         )
-    
+
     def validate_descripcion(self, value):
         return validar_texto(value, "La descripción", maximo=250)
 
     def validate_estado(self, value):
         return validar_reactivacion(value, self.instance, Configuracion, "nombre", "una configuración")
+
 
 # =========================================================
 # EMPRESA - CONFIGURACIÓN
@@ -276,11 +287,11 @@ class EmpresaConfiguracionSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.razon_social", read_only=True)
     configuracion_nombre = serializers.CharField(source="configuracion.nombre", read_only=True)
 
-
     class Meta:
         model = EmpresaConfiguracion
         fields = (
-            "id", "empresa", "empresa_nombre", "configuracion", "configuracion_nombre", "valor", "estado",
+            "id", "empresa", "empresa_nombre", "configuracion",
+            "configuracion_nombre", "valor", "estado",
         )
         read_only_fields = ("id",)  # "estado" editable para poder reactivar
         validators = []  # el control de duplicados se hace abajo con mensaje propio
@@ -307,3 +318,350 @@ class EmpresaConfiguracionSerializer(serializers.ModelSerializer):
             if self.instance.configuracion.estado != "A":
                 raise serializers.ValidationError("No se puede activar: la configuración está inactiva.")
         return value
+
+
+# =========================================================
+# UTILIDADES PARA PERSONAS (usan validaciones/validaciones_serializers.py)
+# =========================================================
+def _nombre_mayus(value, etiqueta):
+    return validar_nombre(limpiar(value), etiqueta, minimo=2, maximo=150).upper()
+
+
+def _validar_identificacion(value):
+    value = (value or "").strip()
+    if not re.match(r"^\d{10}(\d{3})?$", value):
+        raise serializers.ValidationError("La identificación debe tener 10 o 13 dígitos.")
+    return value
+
+
+class _TextosLimpiosMixin:
+    """
+    Validaciones de texto compartidas por cliente, proveedor y empleado.
+    DRF solo ejecuta validate_<campo> si el campo existe en el serializer.
+    """
+
+    def validate_first_name(self, value):
+        return _nombre_mayus(value, "El nombre")
+
+    def validate_last_name(self, value):
+        return _nombre_mayus(value, "El apellido")
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+    def validate_telefono1(self, value):
+        return validar_telefono(value) if value else value
+
+    def validate_ubicacion(self, value):
+        return validar_texto(limpiar(value), "La ubicación", maximo=200)
+
+    def validate_banco(self, value):
+        return validar_texto(limpiar(value), "El banco", maximo=100)
+
+    def validate_tipo_cuenta(self, value):
+        return validar_texto(limpiar(value), "El tipo de cuenta", maximo=20)
+
+    def validate_numero_cuenta(self, value):
+        value = (value or "").strip()
+        if value and not value.isdigit():
+            raise serializers.ValidationError("El número de cuenta solo puede tener dígitos.")
+        return value
+
+    def validate_contacto_emergencia(self, value):
+        return validar_texto(limpiar(value), "El contacto de emergencia", maximo=150)
+
+    def validate_descripcion_emergencia(self, value):
+        return validar_texto(limpiar(value), "La descripción de emergencia", maximo=250)
+
+    def validate_observaciones(self, value):
+        # Texto libre: solo se limpia (permite puntuación)
+        return (value or "").strip()
+
+
+class EstadoActivoField(serializers.Field):
+    """Muestra is_active como 'A' / 'I' para que el frontend use el mismo campo estado."""
+
+    def to_representation(self, value):
+        return "A" if value else "I"
+
+    def to_internal_value(self, data):
+        if data not in ("A", "I"):
+            raise serializers.ValidationError("Estado no válido.")
+        return data == "A"
+
+
+_CAMPOS_PERSONA = (
+    "identificacion", "first_name", "last_name", "email",
+    "telefono1", "tipo", "ubicacion", "fk_codigo_localidad",
+)
+
+
+# =========================================================
+# CLIENTE / PROVEEDOR (vínculo empresa-persona)
+# =========================================================
+class _VinculoPersonaSerializer(_TextosLimpiosMixin, serializers.ModelSerializer):
+    """
+    Busca a la persona por identificación: si existe la reutiliza, si no la crea.
+    Luego crea (o reactiva) el vínculo con la empresa.
+    Las subclases definen: Rol, rol, campos_rol y Meta.
+    """
+
+    Rol = None          # Cliente / Proveedor
+    rol = None          # "cliente" / "proveedor" (nombre del FK en el vínculo)
+    campos_persona = _CAMPOS_PERSONA
+    campos_rol = ()
+
+    empresa = serializers.PrimaryKeyRelatedField(
+        queryset=Empresa.objects.filter(estado="A"),
+        required=False,
+        error_messages={"does_not_exist": "La empresa no existe o está inactiva."},
+    )
+    empresa_nombre = serializers.CharField(source="empresa.razon_social", read_only=True)
+
+    # Datos de la persona (solo escritura; la lectura se arma en to_representation)
+    identificacion = serializers.CharField(write_only=True, required=False)
+    first_name = serializers.CharField(write_only=True, required=False)
+    last_name = serializers.CharField(write_only=True, required=False)
+    email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    telefono1 = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    tipo = serializers.ChoiceField(choices=Usuario.TIPO_CHOICES, write_only=True, required=False)
+    ubicacion = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=200)
+    fk_codigo_localidad = serializers.PrimaryKeyRelatedField(
+        queryset=Localidad.objects.filter(estado="A"),
+        write_only=True, required=False, allow_null=True,
+    )
+
+    # ---------- validaciones ----------
+    def validate_empresa(self, value):
+        if value.pk not in empresas_permitidas(self.context["request"].user):
+            raise serializers.ValidationError("No tienes acceso a esa empresa.")
+        return value
+
+    def validate_identificacion(self, value):
+        # Sin validar_unico: si la persona ya existe se reutiliza
+        return _validar_identificacion(value)
+
+    def validate_estado(self, value):
+        if value == "A" and self.instance and self.instance.empresa.estado != "A":
+            raise serializers.ValidationError("No se puede activar: la empresa está inactiva.")
+        return value
+
+    def validate(self, attrs):
+        if not self.instance:
+            faltan = [c for c in ("identificacion", "first_name", "last_name") if not attrs.get(c)]
+            if faltan:
+                raise serializers.ValidationError(
+                    {c: "Este campo es obligatorio." for c in faltan}
+                )
+            if "empresa" not in attrs:
+                ids = empresas_permitidas(self.context["request"].user)
+                if len(ids) != 1:
+                    raise serializers.ValidationError({"empresa": "Selecciona la empresa."})
+                attrs["empresa"] = Empresa.objects.get(pk=next(iter(ids)))
+        return attrs
+
+    # ---------- lectura ----------
+    def _compartida(self, vinculo):
+        """True si la persona también está vinculada a otra empresa (como cliente o proveedor)."""
+        pid = getattr(vinculo, f"{self.rol}_id")
+        return (
+            ClienteEmpresa.objects.filter(cliente_id=pid).exclude(empresa_id=vinculo.empresa_id).exists()
+            or ProveedorEmpresa.objects.filter(proveedor_id=pid).exclude(empresa_id=vinculo.empresa_id).exists()
+        )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        persona = getattr(instance, self.rol)
+        for c in self.campos_persona:
+            data[c] = getattr(persona, "fk_codigo_localidad_id" if c == "fk_codigo_localidad" else c)
+        for c in self.campos_rol:
+            data[c] = getattr(persona, c)
+        data["nombre"] = persona.get_full_name()
+
+        view = self.context.get("view")
+        if view and getattr(view, "action", None) in ("retrieve", "update", "partial_update"):
+            # Si es True, el frontend debe deshabilitar los datos personales
+            data["datos_compartidos"] = self._compartida(instance)
+        return data
+
+    # ---------- escritura ----------
+    def _crear_rol(self, datos, aud):
+        ident = datos["identificacion"]
+        usuario = Usuario.objects.filter(identificacion=ident).first()
+        if usuario:
+            # La persona ya existe (por ejemplo, es empleado o proveedor): se le agrega el rol.
+            # Se copian los datos del padre para que el guardado no los sobrescriba con vacíos.
+            persona = self.Rol(usuario_ptr_id=usuario.pk)
+            persona.__dict__.update(usuario.__dict__)
+            datos = {k: v for k, v in datos.items() if k in self.campos_rol}
+        else:
+            persona = self.Rol(username=ident, usuario_crea=aud.get("usuario_crea"))
+            persona.set_unusable_password()  # no inicia sesión
+        for k, v in datos.items():
+            setattr(persona, k, v)
+        persona.usuario_actualiza = aud.get("usuario_actualiza")
+        persona.save()
+        return persona
+
+    @transaction.atomic
+    def create(self, vd):
+        aud = {k: vd.pop(k) for k in ("usuario_crea", "usuario_actualiza") if k in vd}
+        empresa = vd.pop("empresa")
+        datos = {k: vd.pop(k) for k in self.campos_persona + self.campos_rol if k in vd}
+
+        persona = self.Rol.objects.filter(identificacion=datos["identificacion"]).first()
+        if persona is None:
+            persona = self._crear_rol(datos, aud)
+
+        Vinculo = self.Meta.model
+        filtro = {self.rol: persona, "empresa": empresa}
+        vinculo = Vinculo.objects.filter(**filtro).first()
+
+        if vinculo and vinculo.estado == "A":
+            raise serializers.ValidationError(
+                {"identificacion": "Ya está registrado en esta empresa."}
+            )
+        if vinculo:  # estaba inactivo: se reactiva con los datos nuevos
+            for k, v in {**vd, "estado": "A", "usuario_actualiza": aud.get("usuario_actualiza")}.items():
+                setattr(vinculo, k, v)
+            vinculo.save()
+            return vinculo
+        return Vinculo.objects.create(**filtro, **vd, **aud)
+
+    @transaction.atomic
+    def update(self, instance, vd):
+        vd.pop("empresa", None)          # el vínculo no cambia de empresa
+        vd.pop("identificacion", None)   # la identificación no se edita
+        datos = {k: vd.pop(k) for k in self.campos_persona + self.campos_rol if k in vd}
+
+        # Los datos de la persona solo se editan si no la usa otra empresa
+        if datos and not self._compartida(instance):
+            persona = getattr(instance, self.rol)
+            for k, v in datos.items():
+                setattr(persona, k, v)
+            persona.usuario_actualiza = vd.get("usuario_actualiza")
+            persona.save()
+        return super().update(instance, vd)
+
+
+class ClienteSerializer(_VinculoPersonaSerializer):
+    Rol = Cliente
+    rol = "cliente"
+    campos_rol = ("observaciones",)
+
+    observaciones = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta:
+        model = ClienteEmpresa
+        fields = (
+            ("id", "empresa", "empresa_nombre", "limite_credito", "dias_credito", "estado")
+            + _CAMPOS_PERSONA + ("observaciones",)
+        )
+        read_only_fields = ("id",)
+        extra_kwargs = {"limite_credito": {"min_value": 0}}
+
+
+class ProveedorSerializer(_VinculoPersonaSerializer):
+    Rol = Proveedor
+    rol = "proveedor"
+    campos_rol = ("link_catalogo", "banco", "tipo_cuenta", "numero_cuenta", "observaciones")
+
+    link_catalogo = serializers.URLField(write_only=True, required=False, allow_blank=True, allow_null=True)
+    banco = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=100)
+    tipo_cuenta = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=20)
+    numero_cuenta = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=30)
+    observaciones = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    class Meta:
+        model = ProveedorEmpresa
+        fields = (
+            ("id", "empresa", "empresa_nombre", "estado")
+            + _CAMPOS_PERSONA
+            + ("link_catalogo", "banco", "tipo_cuenta", "numero_cuenta", "observaciones")
+        )
+        read_only_fields = ("id",)
+
+
+# =========================================================
+# EMPLEADO (una sola empresa, inicia sesión)
+# =========================================================
+class EmpleadoSerializer(_TextosLimpiosMixin, serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, style={"input_type": "password"})
+    estado = EstadoActivoField(source="is_active", required=False)
+    empresa = serializers.PrimaryKeyRelatedField(
+        queryset=Empresa.objects.filter(estado="A"),
+        error_messages={"does_not_exist": "La empresa no existe o está inactiva."},
+    )
+    sucursal = serializers.PrimaryKeyRelatedField(
+        queryset=Sucursal.objects.filter(estado="A"),
+        required=False, allow_null=True,
+        error_messages={"does_not_exist": "La sucursal no existe o está inactiva."},
+    )
+    empresa_nombre = serializers.CharField(source="empresa.razon_social", read_only=True)
+    sucursal_nombre = serializers.CharField(source="sucursal.nombre", read_only=True, default="")
+
+    class Meta:
+        model = Empleado
+        fields = (
+            "id", "username", "password", "identificacion", "first_name", "last_name",
+            "email", "telefono1", "tipo", "fecha_nacimiento", "ubicacion",
+            "fk_codigo_localidad", "empresa", "empresa_nombre", "sucursal",
+            "sucursal_nombre", "fecha_ingreso", "salario", "banco", "tipo_cuenta",
+            "numero_cuenta", "contacto_emergencia", "descripcion_emergencia", "estado",
+        )
+        read_only_fields = ("id",)
+        extra_kwargs = {
+            "salario": {"min_value": 0},
+            # La unicidad se valida abajo con mensajes propios
+            "identificacion": {"validators": []},
+            "username": {"required": False, "validators": []},
+        }
+
+    def validate_empresa(self, value):
+        if value.pk not in empresas_permitidas(self.context["request"].user):
+            raise serializers.ValidationError("No tienes acceso a esa empresa.")
+        return value
+
+    def validate_identificacion(self, value):
+        value = _validar_identificacion(value)
+        return validar_unico(
+            value, self.instance, Usuario, "identificacion",
+            "Ya existe una persona con esa identificación.",
+        )
+
+    def validate_username(self, value):
+        value = (value or "").strip()
+        return validar_unico(
+            value, self.instance, Usuario, "username",
+            "Ya existe un usuario con ese nombre de usuario.",
+        )
+
+    def validate_password(self, value):
+        validar_clave(value)
+        return value
+
+    def validate(self, attrs):
+        empresa = attrs.get("empresa", getattr(self.instance, "empresa", None))
+        sucursal = attrs.get("sucursal", getattr(self.instance, "sucursal", None))
+        if sucursal and empresa and sucursal.empresa_id != empresa.pk:
+            raise serializers.ValidationError({"sucursal": "La sucursal no pertenece a esa empresa."})
+        if not self.instance:
+            if not attrs.get("password"):
+                raise serializers.ValidationError({"password": "La contraseña es obligatoria."})
+            # Si no envían usuario, se usa la identificación
+            if not attrs.get("username"):
+                attrs["username"] = attrs["identificacion"]
+        return attrs
+
+    def create(self, vd):
+        password = vd.pop("password")
+        empleado = Empleado(**vd)
+        empleado.set_password(password)
+        empleado.save()
+        return empleado
+
+    def update(self, instance, vd):
+        password = vd.pop("password", None)
+        if password:
+            instance.set_password(password)
+        return super().update(instance, vd)
